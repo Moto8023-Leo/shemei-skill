@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.match_counter
+node_modules/
+logs/
+images/incoming/
+images/processed/
+data/
+content/
+content_queue.json
+posted_log.json
+.env
+x_cookies*.json

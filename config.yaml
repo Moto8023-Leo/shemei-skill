@@ -1,0 +1,101 @@
+# ============================================================
+# Social Auto-Poster 配置文件
+# 官方 API 方案 — 零成本、稳定可靠
+# ============================================================
+
+# 网络代理（访问 FB / X / IG 需要）
+proxy:
+  server: "http://127.0.0.1:7890"   # HTTP/SOCKS5 代理地址
+  # server: "socks5://127.0.0.1:7891"  # 备选 SOCKS5
+
+# API 配置（替代浏览器自动化）
+x_api:
+  enabled: true
+  # Free tier: 500 posts/month, 17 media uploads/day
+  max_text_length: 280
+  retry_on_rate_limit: true
+  rate_limit_wait_max: 900  # 15 分钟
+
+facebook_api:
+  enabled: true
+  # Free for Page posting, 无速率限制
+  graph_url: "https://graph.facebook.com/v22.0"
+  cross_post_instagram: true
+
+instagram_api:
+  enabled: true
+  # 需要 IG 商业/创作者账户关联 FB Page
+  graph_url: "https://graph.facebook.com/v22.0"
+
+# 发布控制（各平台共用）
+posting:
+  post_interval: 35         # 连续发布间隔（秒）
+  max_retries: 3
+  retry_delay: 5            # 失败重试间隔（秒）
+
+# Anthropic Claude API 配置
+anthropic:
+  model: "claude-sonnet-4-5-20250915"
+  max_tokens: 500
+  temperature: 0.8
+  fallback_model: "claude-haiku-4-5-20251001"
+
+# 路径配置（相对于项目根目录）
+paths:
+  content: "content"
+  queue_file: "content_queue.json"
+  log_file: "posted_log.json"
+  data_dir: "data"
+  prompt_dir: "data/prompts"
+  image_dir: "data/images"
+  published_dir: "data/published"
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "[%(asctime)s] [%(levelname)s] %(message)s"
+
+# ============================================================
+# 以下为 Playwright 浏览器自动化配置（已废弃，保留作为参考）
+# ============================================================
+browser:
+  channel: "chrome"
+  headless: false
+  viewport:
+    width: 1280
+    height: 800
+  args:
+    - "--disable-blink-features=AutomationControlled"
+    - "--no-sandbox"
+
+delays:
+  typing_delay_min: 50
+  typing_delay_max: 200
+  post_interval: 35
+  page_load_timeout: 30000
+
+facebook:
+  url: "https://www.facebook.com/"
+  home_url: "https://www.facebook.com/"
+  cross_post_instagram: true
+
+x:
+  url: "https://x.com/home"
+  home_url: "https://x.com/home"
+
+instagram:
+  url: "https://www.instagram.com/"
+  create_url: "https://www.instagram.com/create/select/"
+  delays:
+    typing_delay_min: 80
+    typing_delay_max: 250
+    post_interval: 45
+    page_load_timeout: 40000
+    after_navigation_min: 3000
+    after_navigation_max: 6000
+    after_upload_min: 5000
+    after_upload_max: 10000
+    after_click_min: 1500
+    after_click_max: 4000
+    before_publish_min: 3000
+    before_publish_max: 7000

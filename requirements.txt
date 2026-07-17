@@ -1,0 +1,17 @@
+# HTTP API 库 + X (twikit)
+requests>=2.31.0
+twikit>=2.3.0
+# tweepy — 保留备用（X API 已收费）
+tweepy>=4.14.0
+# 飞书多维表格
+lark-oapi>=1.7.0
+# 配置和数据
+pyyaml>=6.0
+pandas>=2.0.0
+python-dotenv>=1.0.0
+# AI 内容生成
+anthropic>=0.49.0
+tenacity>=9.0.0
+openai>=1.0.0
+# 图片处理
+Pillow>=10.0.0
