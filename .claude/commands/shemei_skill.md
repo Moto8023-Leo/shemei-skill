@@ -42,7 +42,8 @@ Browser (localhost:5174) → Vite proxy → FastAPI (localhost:8000)
 
 ### Key architecture details
 
-- **AI Copy Generation**: DeepSeek-chat with English copywriting system prompt (benefit-first, show-don't-tell, 35-55 word body, MAX 280 char X text). 2-pass AI self-review for quality.
+- **AI Copy Generation**: DeepSeek-v4-flash (Creative Brief pipeline) for web UI workbench. Content factory uses DeepSeek-chat with English copywriting system prompt. SSE streaming for live progress in web UI.
+- **Quality check**: 1-pass AI self-review (reduced from 2-pass to improve speed).
 - **FB/IG Posting**: Graph API v22.0. IG uses FB Page as image bridge (unpublished photo → container → publish).
 - **X Posting**: twikit API (cookie-based, fast). Automatic fallback to Playwright Chromium if Cloudflare blocks.
 - **Image Resolution**: API auto-fetches product image from Feishu product table (`iENYRID数据表2`) if no explicit `image_url` provided. Uses fuzzy model-name matching ("iENYRID ES1" matches "ES1").
@@ -221,8 +222,8 @@ python scripts/content_factory.py --test "iENYRID ES1"
 
 | File | Role |
 |------|------|
-| `server.py` | FastAPI backend — all API endpoints + publish logic + Feishu writeback |
-| `scripts/content_factory.py` | AI copy generation — DeepSeek prompt builder + 2-pass review |
+| `server.py` | FastAPI backend — all API endpoints + publish logic + Feishu writeback + Creative Brief pipeline + SSE streaming |
+| `scripts/content_factory.py` | AI copy generation — DeepSeek prompt builder + 1-pass AI self-review |
 | `scripts/publish_engine.py` | Multi-platform publish orchestrator (FB→IG→X) + CLI |
 | `scripts/feishu_driver.py` | Feishu Bitable CRUD — records, attachments, auth |
 | `scripts/fb_api.py` | Facebook Graph API v22.0 poster |
