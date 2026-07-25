@@ -1,0 +1,44 @@
+{
+  "entries": [
+    {
+      "taskId": "TASK-20260724-0973EB",
+      "title": "60km of Freedom – Summer’s Calling, Scoot Out",
+      "body": "Summer’s here, and your weekend adventures just got a serious upgrade. 🛴 The iENYRID ES1 gives you up to 60km freedom on a single charge, so you can explore the city or cruise to work without range anxiety. Powered by a 2400W motor, it’s fast, foldable, and built for real life. Grab yours now at iENYRID EU! 👉 https://www.ienyrid-eu.com/products/ienyrid-es1-electric-scooter",
+      "tags": "#iENYRIDES1 #ElectricScooter #SummerFreedom #CityCommute",
+      "imagePrompt": "A sleek iENYRID ES1 electric scooter parked on a clean asphalt road in a modern city at golden hour. Morning light streams between glass office buildings, casting warm shadows. A professional-looking commuter in casual summer attire stands beside it, holding a helmet. The scooter’s LED headlight is on, highlighting its black finish and robust tires. The scene feels fresh, energetic, and inviting for a summer day. Focus on the scooter’s foldable frame and dual disc brakes. Background: clean, modern architecture, minimal traffic. Mood: optimistic, free, ready for adventure.",
+      "createdAt": "2026-07-24T21:08:31.161422",
+      "hookFingerprint": "60km freedom summer calling scoot out here weekend adventures serious",
+      "sellingPointFingerprint": "2400w motor citycommute electricscooter ienyrides1 single charge summerfreedom without range",
+      "ctaFingerprint": "explore grab",
+      "sceneFingerprint": "road city golden morning office",
+      "compositionFingerprint": "clean focus clean minimal"
+    },
+    {
+      "taskId": "TASK-20260724-A85BB2",
+      "title": "Skip the Bus, Own the Morning: 60km Campus Range 🛴",
+      "body": "Tired of crowded buses? Glide past traffic to class, arriving fresh and on time. The iENYRID M4 Pro S+ Max delivers up to 60km range on a single charge—enough for a full week of campus commutes. Lightweight, fast-folding, and ready for golden hour. Grab yours now and make every ride count! 🚀",
+      "tags": "#iENYRIDM4ProS+Max #ElectricScooter #NoMoreTraffic #CampusLife",
+      "imagePrompt": "A sleek iENYRID M4 Pro S+ Max electric scooter parked on a clean asphalt campus path, with modern office and university buildings in the background bathed in warm morning golden hour light. A student in professional-casual attire holds a backpack, smiling as they prepare to ride. The scene conveys a fresh, energetic back-to-school vibe with soft shadows and a clear blue sky. Composition: low angle, scooter in foreground, buildings slightly blurred for depth. Mood: aspirational, punctual, and free.",
+      "createdAt": "2026-07-24T22:15:15.246950",
+      "hookFingerprint": "skip bus morning 60km campus range tired crowded buses",
+      "sellingPointFingerprint": "60km range campuslife electricscooter ienyridm4pros max nomoretraffic single charge",
+      "ctaFingerprint": "grab ride",
+      "sceneFingerprint": "campus office morning golden",
+      "compositionFingerprint": "clean back angle depth"
+    },
+    {
+      "taskId": "TASK-20260724-C5A79B",
+      "title": "65km of Freedom: Your Morning, Your Way, No Bus Required.",
+      "body": "Skip the bus and the stress. The iENYRID M4 Pro S+ Max delivers up to 65km range, a comfy seat, and 45km/h speed. Cruise to campus with zero hassle. Back-to-school just got a serious upgrade. 🛴 Grab yours now at iENYRID!",
+      "tags": "#iENYRIDM4ProSPlusMax #ElectricScooter #BackToSchool #CampusLife",
+      "imagePrompt": "A young student in casual back-to-school attire rides the iENYRID M4 Pro S+ Max electric scooter on a clean, modern city street. Morning golden hour light casts warm tones. In the background, contemporary office and campus buildings. The scooter's seat is clearly visible, emphasizing comfort. The student carries a backpack, looking confident and relaxed. Composition: dynamic low-angle shot showing speed and freedom. Mood: energetic, fresh, back-to-school vibes. Tire details and sleek black design highlighted. No clutter, just pure urban commute aesthetic.",
+      "createdAt": "2026-07-24T23:06:43.756898",
+      "hookFingerprint": "65km freedom morning way bus required skip stress",
+      "sellingPointFingerprint": "45km speed 65km range backtoschool campuslife electricscooter ienyridm4prosplusmax",
+      "ctaFingerprint": "grab",
+      "sceneFingerprint": "city street morning golden office",
+      "compositionFingerprint": "back clean angle shot back"
+    }
+  ],
+  "updatedAt": "2026-07-24T23:06:43.757037"
+}

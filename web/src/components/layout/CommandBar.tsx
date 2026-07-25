@@ -1,0 +1,132 @@
+// CommandBar — mode hint + action buttons (Creative Brief aware)
+import { useAppStore } from '../../store/useAppStore';
+import { useStudioStore } from '../../store/useStudioStore';
+import { useBriefStore } from '../../store/useBriefStore';
+import { useNavigate } from 'react-router-dom';
+
+interface Props {
+  mode: string;
+  currentPath: string;
+}
+
+export default function CommandBar({ mode }: Props) {
+  const showToast = useAppStore((s) => s.showToast);
+  const navigate = useNavigate();
+
+  // Old studio store (for other pages)
+  const studioContent = useStudioStore((s) => s.content);
+  const studioGenerating = useStudioStore((s) => s.generating);
+  const studioPublishing = useStudioStore((s) => s.publishing);
+  const studioSaveDraft = useStudioStore((s) => s.saveDraft);
+  const studioGenerate = useStudioStore((s) => s.generate);
+  const studioPublish = useStudioStore((s) => s.publish);
+
+  // New brief store (for workbench page)
+  const briefStage = useBriefStore((s) => s.stage);
+  const briefGenerating = useBriefStore((s) => s.analysisStatus === 'loading');
+  const briefApplied = useBriefStore((s) => s.briefApplied);
+  const generationLoading = useBriefStore((s) => s.generationStatus === 'loading');
+  const contentReady = useBriefStore((s) => s.generationStatus === 'done');
+  const reviewed = useBriefStore((s) => s.reviewed);
+  const analyzeIdea = useBriefStore((s) => s.analyzeIdea);
+  const reanalyze = useBriefStore((s) => s.reanalyze);
+  const applyBrief = useBriefStore((s) => s.applyBrief);
+  const generateContent = useBriefStore((s) => s.generateContent);
+  const publishContent = useBriefStore((s) => s.publishContent);
+
+  const isWorkbench = window.location.hash === '#/' || window.location.hash === '';
+
+  // Build visible steps based on real state (not fixed 4-step list)
+  const visibleSteps: { label: string; action: () => void; disabled: boolean; variant: 'default' | 'primary' | 'success' }[] = [];
+
+  if (briefStage >= 1) {
+    // Step 1: Analyze idea
+    visibleSteps.push({
+      label: briefGenerating ? '◌ 分析中...' : (briefStage >= 2 ? '✓ 已理解创意' : '✦ 分析想法'),
+      action: () => { analyzeIdea(); showToast('正在理解创意…', 'info'); },
+      disabled: briefGenerating || briefStage >= 2,
+      variant: 'primary',
+    });
+  }
+
+  if (briefStage === 2 && !briefApplied) {
+    // Step 2: Confirm brief
+    visibleSteps.push({
+      label: '↻ 重新理解',
+      action: () => { reanalyze(); },
+      disabled: briefGenerating,
+      variant: 'default',
+    });
+    visibleSteps.push({
+      label: '✓ 确认 Brief',
+      action: () => { applyBrief(); showToast('Brief 已应用', 'success'); },
+      disabled: false,
+      variant: 'primary',
+    });
+  }
+
+  if (briefApplied) {
+    // Step 3: Generate content
+    visibleSteps.push({
+      label: generationLoading ? '◌ 生成中...' : (contentReady ? '✓ 已生成' : '✦ 生成内容'),
+      action: () => { generateContent(); },
+      disabled: generationLoading || contentReady,
+      variant: 'primary',
+    });
+  }
+
+  if (contentReady) {
+    // Step 4: Publish
+    visibleSteps.push({
+      label: reviewed ? '➤ 发布' : '✓ 提交审核',
+      action: () => { publishContent(); },
+      disabled: false,
+      variant: 'success',
+    });
+  }
+
+  return (
+    <div className="commandbar">
+      <div className="commandbar-context">
+        <span>☁</span>
+        <span>{mode === 'live' ? 'Claude / GPT Image 服务已连接' : '演示模式：未配置密钥也可完整体验'}</span>
+      </div>
+      <div className="commandbar-actions">
+        {isWorkbench && visibleSteps.length > 0 && (
+          <>
+            {visibleSteps.map((step, i) => (
+              <button
+                key={i}
+                className={step.variant === 'primary' ? 'blue' : step.variant === 'success' ? 'green' : ''}
+                type="button"
+                onClick={step.action}
+                disabled={step.disabled}
+              >
+                {step.label}
+              </button>
+            ))}
+          </>
+        )}
+
+        {!isWorkbench && (
+          <>
+            <button type="button" onClick={() => { studioSaveDraft(); showToast('草稿已保存', 'success'); }}>
+              ▣ 保存草稿
+            </button>
+            <button className="blue" type="button" onClick={studioGenerate} disabled={studioGenerating}>
+              {studioGenerating ? '◌ 生成中...' : '✦ 生成内容'}
+            </button>
+            <button className="green" type="button" onClick={studioPublish} disabled={!studioContent || studioPublishing}>
+              {studioPublishing ? '◌ 发布中...' : '➤ 审核通过并发布'}
+            </button>
+            <button className="blue" type="button" onClick={() => navigate('/')}>
+              ✦ 返回工作台
+            </button>
+          </>
+        )}
+
+        <button type="button" aria-label="更多操作">•••</button>
+      </div>
+    </div>
+  );
+}

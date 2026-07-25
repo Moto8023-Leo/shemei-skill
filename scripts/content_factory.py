@@ -84,6 +84,9 @@ def build_master_prompt(
         get_cta, get_scene, get_ad_type, get_tone,
     )
 
+    # Range safety rules — CRITICAL for EU/UK compliance
+    from scripts.facts import build_range_safety_rules, build_absolute_claims_rules
+
     prod = get_product(model_name) or {}
     pain = get_pain_point(pain_point) or {}
     discount_label = get_discount(discount)
@@ -141,6 +144,31 @@ def build_master_prompt(
         promo_combo_parts.append(promo_label)
     promo_combo = " · ".join(promo_combo_parts) if promo_combo_parts else "无"
 
+    # Build campaign section if campaign info passed via manual_note
+    campaign_section = ""
+    campaign_guide = ""
+    if manual_note and "CAMPAIGN CONTEXT" in manual_note:
+        campaign_section = f"""【营销活动匹配 — THIS IS THE ACTIVE CAMPAIGN】
+{manual_note.split('CAMPAIGN CONTEXT')[1].split('\n\n')[0].strip()}
+
+【Campaign Copy Rules】
+- The ad copy MUST reference the campaign theme. Weave it naturally into the headline, body, and emotional hook.
+- If in PRE-HEAT phase (预热): Build anticipation. "Coming soon" / "Get ready for" / "Starts [date]" tone. Tease the value.
+- If ACTIVE (进行中): Strong CTA. Mention the campaign name. Use time-sensitive language.
+- If LAST CHANCE (最后机会): Maximum urgency. "Last days" / "Ends soon" / "Don't miss" tone.
+- The image_prompt MUST reflect the campaign mood: seasonal lighting, relevant props, appropriate scene.
+- NEVER generate a generic ad — every output must tie to THIS campaign.
+"""
+
+    campaign_guide = ""
+    if campaign_section:
+        campaign_guide = """
+【Campaign-Image Guidelines】
+- Scene and lighting must match the campaign season (e.g., back-to-school = campus/commuter morning light; summer sale = bright sunny streets; Christmas = warm winter city glow)
+- Visual props and people should match the campaign audience (students, commuters, gift shoppers, etc.)
+- Color palette should align with campaign energy (fresh/energetic for spring, warm/cozy for autumn, bold/contrast for Black Friday)
+"""
+
     l3_marketing = f"""【营销上下文】
 广告类型：{_safe(ad_type)}（{_safe(ad_type_desc)}）
 用户痛点：{_safe(pain_point)} → 核心卖点：{_safe(pain.get('coreSellingPoint', ''))} → 广告角度：{_safe(pain.get('adAngle', ''))}
@@ -149,7 +177,7 @@ def build_master_prompt(
 折扣代码：{_safe(discount_code) if discount_code else "无"}
 行动号召：{_safe(cta_label)}
 文案语气：{_safe(tone)}（{tone_desc}）
-发布平台：{platform}"""
+发布平台：{platform}{campaign_section}"""
 
     # ---- L4: Content Requirements (ENGLISH OUTPUT) ----
     l4_requirements = f"""【Content Generation Requirements — OUTPUT MUST BE IN ENGLISH】
@@ -162,7 +190,7 @@ OUTPUT JSON with 5 fields:
   "tags": "#tag1 #tag2 #tag3 #tag4 (EXACTLY 4 hashtags. Tag1: #{product_tag} — ONE combined tag, no spaces. Tag2: category. Tag3: one benefit/vibe word. Tag4: one lifestyle/scene word. Example: #{product_tag} #ElectricScooter #NoMoreTraffic #CityLife)",
   "x_text": "Tweet in ENGLISH, MAX 280 CHARS. Front-load the strongest hook in the first 50 chars. Compact, urgent, scroll-stopping. Include 3 hashtags. Include product link if available. Every character must earn its place.",
   "image_prompt": "English AI image generation prompt. Main subject is {p('品牌')} {p('型号名称','型号')} electric scooter. Scene: {scene_desc}. Highlight: {p('产品卖点')}. Describe lighting, composition, and mood. 80-150 words. For DALL-E/Midjourney."
-}}
+}}{campaign_guide}
 
 【Copywriting Quality Rules】
 - BENEFIT FIRST: Every sentence answers "what's in it for me?".
@@ -171,6 +199,7 @@ OUTPUT JSON with 5 fields:
 - URGENCY: End with a reason to click NOW (limited offer, code active, stock running out).
 - VOICE: Native, conversational English. Read it out loud — if it sounds like a robot wrote it, rewrite it.
 - The headline and body MUST use DIFFERENT hooks. Don't repeat the same angle.
+- IF there is an active campaign above in 【营销活动匹配】, the ENTIRE ad copy AND image_prompt MUST revolve around that campaign. The campaign name should appear in body and x_text. The image_prompt should match the campaign season and audience.
 
 【Brand Rules】
 - The hero product is {p('品牌')} {p('型号名称','型号')} electric scooter
@@ -182,6 +211,15 @@ OUTPUT JSON with 5 fields:
 - If promotion or discount code exists, make it a reason to act NOW.
 - ALL output text MUST be in native, fluent ENGLISH
 - x_text: <= 280 chars, 3 hashtags, link if available"""
+
+    # ---- L4.5: Safety Rules — RANGE + ABSOLUTE CLAIMS (BLOCKING) ----
+    range_safety = build_range_safety_rules(model_name)
+    abs_claims = build_absolute_claims_rules()
+    safety_rules = ""
+    if range_safety:
+        safety_rules += range_safety
+    safety_rules += abs_claims
+    l45_safety = safety_rules if safety_rules else ""
 
     # ---- L5: Constraints ----
     l5_constraints = f"""【Hard Constraints】
@@ -210,6 +248,8 @@ OUTPUT JSON with 5 fields:
 {l3_marketing}
 
 {l4_requirements}
+
+{l45_safety}
 
 {l5_constraints}{manual_section}"""
 
@@ -352,15 +392,35 @@ def generate_ad_content(fields: dict) -> dict:
     if len(result["x_text"]) > 280:
         result["x_text"] = result["x_text"][:277] + "..."
 
-    # AI DOUBLE SELF-CHECK: Review copy + image_prompt twice automatically
+    # ---- POST-GENERATION SAFETY VALIDATION ----
+    from scripts.facts import validate_content_safety, has_unsafe_range
+
+    safety_check = validate_content_safety(
+        body=result.get("body", ""),
+        x_text=result.get("x_text", ""),
+        title=result.get("title", ""),
+        image_prompt=result.get("image_prompt", ""),
+    )
+    if safety_check["violations"]:
+        logger.warning(f"SAFETY VIOLATIONS FOUND: {len(safety_check['violations'])} issues")
+        for v in safety_check["violations"]:
+            logger.warning(f"  [{v['severity']}] {v['field']}: {v['match']} → {v.get('suggestion', 'REMOVE')}")
+        # Attach violations to result for downstream handling
+        result["_safety_violations"] = safety_check["violations"]
+        result["_safety_blocking"] = safety_check["blocking"]
+    else:
+        result["_safety_violations"] = []
+        result["_safety_blocking"] = False
+        logger.info("Safety check passed — no violations ✓")
+
+    # AI SELF-CHECK: Review copy + image_prompt once automatically
     result = _ai_review_pass(result, model_name, pass_num=1)
-    result = _ai_review_pass(result, model_name, pass_num=2)
 
     return result
 
 
 # ------------------------------------------------------------------
-# AI Double Self-Check — automatic quality assurance
+# AI Self-Check — automatic quality assurance
 # ------------------------------------------------------------------
 
 def _ai_review_pass(content: dict, model_name: str, pass_num: int = 1) -> dict:
@@ -402,6 +462,8 @@ Your job — be critical, be sharp. FIX anything that falls short:
 6. TAGS: EXACTLY 4 hashtags. Product model MUST be ONE combined tag (#iENYRIDES1, NEVER #iENYRID #ES1).
 7. MISSING CTA: If there's a product link or discount code, make the reader want to click NOW.
 8. VOICE CHECK: Would a real human post this? If not, rewrite until they would.
+9. RANGE SAFETY: If you see a raw range like "45-55km", FIX IT to "UP TO 55KM RANGE". NEVER output bare ranges.
+10. ABSOLUTE CLAIMS: Remove "safest", "100% safe", "guaranteed", "unbreakable", "best in the world". Use qualified language instead.
 
 Output ONLY valid JSON:
 {{"title":"...", "body":"...", "tags":"...", "x_text":"...", "image_prompt":"..."}}
@@ -556,7 +618,7 @@ def process_drafts(dry_run: bool = False) -> list[dict]:
         print(f"       标签: {tags}")
         print(f"       生图提示词: {img_prompt[:80]}...")
         print(f"       匹配码: {match_code}")
-        print(f"       ✅ AI 双重自检通过")
+        print(f"       ✅ AI 自检通过")
 
         if not dry_run:
             ok = driver.mark_generated(record_id, title, body, tags, img_prompt, match_code, x_text=content.get("x_text", ""))

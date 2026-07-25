@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -m py_compile server.py post_now.py scripts/*.py)"
+      "Bash(python -m py_compile server.py post_now.py scripts/*.py)",
+      "Bash(curl -s --max-time 3 http://localhost:8000/api/brands)"
     ]
   }
 }
