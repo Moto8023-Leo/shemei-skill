@@ -1,0 +1,26 @@
+{
+  "events": [
+    {
+      "id": "summer-BE-2026",
+      "name": "夏季促销 2026",
+      "country": "BE",
+      "startDate": "2026-07-01",
+      "endDate": "2026-08-31",
+      "phase": "进行中",
+      "daysUntil": 0,
+      "type": "营销节点",
+      "recommendation": "结合夏季城市探索、周末短途与清晰优惠信息。"
+    },
+    {
+      "id": "back-school-BE-2026",
+      "name": "返校季 2026",
+      "country": "BE",
+      "startDate": "2026-08-01",
+      "endDate": "2026-09-15",
+      "phase": "预热",
+      "daysUntil": 4,
+      "type": "营销节点",
+      "recommendation": "面向成年学生、家长和通勤人群，突出便携、续航与日常效率。"
+    }
+  ]
+}

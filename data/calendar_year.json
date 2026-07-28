@@ -1,0 +1,4 @@
+{
+  "error": "HTTP Error 404: Not Found",
+  "endpoint": "calendar/year?country=GB&year=2026"
+}

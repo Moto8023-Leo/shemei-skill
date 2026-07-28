@@ -1,0 +1,190 @@
+{
+  "mode": "live",
+  "brands": [
+    {
+      "id": "ienyrid",
+      "name": "iENYRID",
+      "website": "https://www.ienyrid-eu.com/",
+      "tone": "热情有力",
+      "positioning": [
+        "城市通勤",
+        "户外越野"
+      ],
+      "audiences": [
+        "年轻成人",
+        "成人",
+        "成熟用户"
+      ],
+      "visualDna": [
+        "城市通勤",
+        "性能机械",
+        "明亮科技"
+      ],
+      "visualDnaEn": {
+        "城市通勤": "urban commuting",
+        "性能机械": "performance machine",
+        "明亮科技": "bright tech",
+        "高级极简": "premium minimalist",
+        "户外探索": "outdoor exploration"
+      },
+      "forbidden": [
+        "侮辱性词汇",
+        "歧视性词汇",
+        "低俗表达",
+        "虚假承诺"
+      ]
+    }
+  ],
+  "products": [
+    {
+      "id": "ienyrid-es1",
+      "brandId": "ienyrid",
+      "model": "ES1",
+      "motor": "2400W 无刷电机",
+      "battery": "48V 20.8Ah 锂电池",
+      "range": "60km",
+      "topSpeed": "60km/h",
+      "brakes": "",
+      "tires": "",
+      "suspension": "双液压弹簧减震",
+      "foldable": true,
+      "maxLoad": "30kg",
+      "price": "€669.00",
+      "currency": "EUR",
+      "sellingPoints": [
+        "2400W大功率电机 · 60km长续航 · 轻便可折叠 · 双重碟刹 · 防爆轮胎 · 前后减震"
+      ],
+      "structureLock": "",
+      "url": "https://www.ienyrid-eu.com/products/ienyrid-es1-electric-scooter",
+      "hasImage": true
+    },
+    {
+      "id": "ienyrid-m4-pro-s+-max",
+      "brandId": "ienyrid",
+      "model": "M4 Pro S+ Max",
+      "motor": "800W",
+      "battery": "48V 20Ah 锂电池",
+      "range": "40-65KM",
+      "topSpeed": "45km/h",
+      "brakes": "",
+      "tires": "",
+      "suspension": "前后双弹簧减震",
+      "foldable": false,
+      "maxLoad": "23.15KG",
+      "price": "€579.00",
+      "currency": "EUR",
+      "sellingPoints": [
+        "带座椅的成人电动滑板车"
+      ],
+      "structureLock": "",
+      "url": "https://www.ienyrid-eu.com/products/ienyrid-m4-pro-s-max-800w-electric-scooter-with-seat-20ah",
+      "hasImage": true
+    }
+  ],
+  "countries": [
+    {
+      "code": "GB",
+      "name": "英国",
+      "nameEn": "United Kingdom",
+      "flag": "🇬🇧",
+      "language": "English",
+      "currency": "GBP",
+      "locale": "en-GB",
+      "spelling": "British English"
+    },
+    {
+      "code": "DE",
+      "name": "德国",
+      "nameEn": "Germany",
+      "flag": "🇩🇪",
+      "language": "Deutsch",
+      "currency": "EUR",
+      "locale": "de-DE",
+      "spelling": "German"
+    },
+    {
+      "code": "FR",
+      "name": "法国",
+      "nameEn": "France",
+      "flag": "🇫🇷",
+      "language": "Français",
+      "currency": "EUR",
+      "locale": "fr-FR",
+      "spelling": "French"
+    },
+    {
+      "code": "ES",
+      "name": "西班牙",
+      "nameEn": "Spain",
+      "flag": "🇪🇸",
+      "language": "Español",
+      "currency": "EUR",
+      "locale": "es-ES",
+      "spelling": "Spanish"
+    },
+    {
+      "code": "IT",
+      "name": "意大利",
+      "nameEn": "Italy",
+      "flag": "🇮🇹",
+      "language": "Italiano",
+      "currency": "EUR",
+      "locale": "it-IT",
+      "spelling": "Italian"
+    },
+    {
+      "code": "NL",
+      "name": "荷兰",
+      "nameEn": "Netherlands",
+      "flag": "🇳🇱",
+      "language": "Nederlands",
+      "currency": "EUR",
+      "locale": "nl-NL",
+      "spelling": "Dutch"
+    },
+    {
+      "code": "BE",
+      "name": "比利时",
+      "nameEn": "Belgium",
+      "flag": "🇧🇪",
+      "language": "English",
+      "currency": "EUR",
+      "locale": "en-BE",
+      "spelling": "International English"
+    }
+  ],
+  "currentDate": "2026-07-28",
+  "events": [
+    {
+      "id": "summer-GB-2026",
+      "name": "夏季促销 2026",
+      "country": "GB",
+      "startDate": "2026-07-01",
+      "endDate": "2026-08-31",
+      "phase": "进行中",
+      "daysUntil": 0,
+      "type": "营销节点",
+      "recommendation": "结合夏季城市探索、周末短途与清晰优惠信息。"
+    },
+    {
+      "id": "back-school-GB-2026",
+      "name": "返校季 2026",
+      "country": "GB",
+      "startDate": "2026-08-01",
+      "endDate": "2026-09-15",
+      "phase": "预热",
+      "daysUntil": 4,
+      "type": "营销节点",
+      "recommendation": "面向成年学生、家长和通勤人群，突出便携、续航与日常效率。"
+    }
+  ],
+  "serviceStatus": {
+    "deepseek": true,
+    "feishu": true,
+    "meta": true
+  },
+  "calendarDisclaimer": "2026 节日数据用于营销规划参考；西班牙、德国、比利时等国家存在地区差异，发布前请按目标地区复核。",
+  "limits": {
+    "maxUploadMb": 10
+  }
+}

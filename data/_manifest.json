@@ -1,0 +1,20 @@
+{
+  "exported_at": "2026-07-28T23:35:10.240303",
+  "source": "http://localhost:8000",
+  "endpoints": [
+    "health",
+    "bootstrap",
+    "brands",
+    "models?brand=ienyrid",
+    "models?brand=kukirin",
+    "events?country=GB",
+    "events?country=DE",
+    "events?country=FR",
+    "events?country=ES",
+    "events?country=IT",
+    "events?country=NL",
+    "events?country=BE",
+    "calendar/year?country=GB&year=2026",
+    "visual/style-pool?language=zh"
+  ]
+}

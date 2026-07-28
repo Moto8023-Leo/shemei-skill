@@ -1,0 +1,35 @@
+{
+  "models": [
+    {
+      "name": "ES1",
+      "brand": "iENYRID",
+      "motor": "2400W 无刷电机",
+      "battery": "48V 20.8Ah 锂电池",
+      "range": "60km",
+      "speed": "60km/h",
+      "weight": "30kg",
+      "climb": "30°",
+      "price": "€669.00",
+      "selling_point": "2400W大功率电机 · 60km长续航 · 轻便可折叠 · 双重碟刹 · 防爆轮胎 · 前后减震",
+      "advantage": "同价位续航最长、电机功率最大、充气防爆轮胎",
+      "link": "https://www.ienyrid-eu.com/products/ienyrid-es1-electric-scooter",
+      "has_image": true
+    },
+    {
+      "name": "M4 Pro S+ Max",
+      "brand": "iENYRID",
+      "motor": "800W",
+      "battery": "48V 20Ah 锂电池",
+      "range": "40-65KM",
+      "speed": "45km/h",
+      "weight": "23.15KG",
+      "climb": "≤20°",
+      "price": "€579.00",
+      "selling_point": "带座椅的成人电动滑板车",
+      "advantage": "",
+      "link": "https://www.ienyrid-eu.com/products/ienyrid-m4-pro-s-max-800w-electric-scooter-with-seat-20ah",
+      "has_image": true
+    }
+  ],
+  "brand": "iENYRID"
+}
