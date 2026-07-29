@@ -11,9 +11,11 @@
  * X/Twitter publishing requires Python (twikit/Playwright) — not supported in serverless.
  *
  * Required env: FB_PAGE_ID, FB_ACCESS_TOKEN, IG_USER_ID
+ *   For Feishu writeback: FEISHU_APP_ID, FEISHU_APP_SECRET, FEISHU_APP_TOKEN, FEISHU_SCHEDULE_TABLE_ID
  * Optional env: FB_GRAPH_URL (default: https://graph.facebook.com/v22.0)
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { getAccessToken } from "./feishu-client";
 
 const FB_GRAPH_URL = process.env.FB_GRAPH_URL || "https://graph.facebook.com/v22.0";
 const FB_PAGE_ID = process.env.FB_PAGE_ID || "";
@@ -256,6 +258,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .map((p) => p.url)
       .join("\n");
 
+    // Fire-and-forget: write result back to Feishu schedule table
+    if (req.body.model_name || req.body.title) {
+      writeFeishuResult(req.body, platforms, summaryUrls).catch((e) =>
+        console.warn("Feishu writeback failed:", e.message)
+      );
+    }
+
     return res.status(200).json({
       status: "done",
       result: { platforms, summary: summaryUrls || "No platforms published successfully", allOk },
@@ -263,5 +272,70 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (e: any) {
     console.error("publish error:", e);
     return res.status(502).json({ status: "error", result: { error: e.message || "Publish failed" } });
+  }
+}
+
+// ── Feishu writeback ──
+
+async function writeFeishuResult(
+  body: any,
+  platforms: Record<string, { success: boolean; url?: string; error?: string }>,
+  summary: string
+) {
+  const FEISHU_APP_TOKEN = process.env.FEISHU_APP_TOKEN || "QFrowVpL3iIMAYkCE2PcaZCEnJe";
+  const tableId = process.env.FEISHU_SCHEDULE_TABLE_ID || "tblTZTeXWry93slq";
+  const brand = (body.brand || "ienyrid").toLowerCase();
+  // Kukirin uses a different table
+  const scheduleTableId = brand === "kukirin" ? "tblw90DsOkPcqp5T" : tableId;
+
+  try {
+    const token = await getAccessToken();
+    const allOk = Object.values(platforms).filter((p) => p.success).length >= 2;
+    const status = allOk ? "已发布" : "部分失败";
+    const resultText = summary || JSON.stringify(platforms);
+
+    // Look for existing record by model + title to update
+    const listUrl = `https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU_APP_TOKEN}/tables/${scheduleTableId}/records?page_size=50`;
+    const listResp = await fetch(listUrl, {
+      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
+    });
+    const listData = (await listResp.json()) as any;
+
+    if (listData.code === 0 && listData.data?.items) {
+      const modelName = body.model_name || "";
+      // Find the most recent matching record
+      let targetRecord: any = null;
+      for (const item of listData.data.items) {
+        const f = item.fields || {};
+        const recModel = (f["产品型号"] || "").toString();
+        if (modelName && recModel.includes(modelName)) {
+          targetRecord = item;
+          break;
+        }
+      }
+      // If no model match, use the most recent record with 草稿 or 已生成 status
+      if (!targetRecord) {
+        for (const item of listData.data.items) {
+          const f = item.fields || {};
+          const st = (f["审核状态"] || "").toString();
+          if (st === "草稿" || st === "已生成") {
+            targetRecord = item;
+            break;
+          }
+        }
+      }
+
+      if (targetRecord) {
+        const updateUrl = `https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU_APP_TOKEN}/tables/${scheduleTableId}/records/${targetRecord.record_id}`;
+        await fetch(updateUrl, {
+          method: "PUT",
+          headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify({ fields: { "审核状态": status, "发布结果": resultText } }),
+        });
+        console.log(`Feishu writeback: record ${targetRecord.record_id} → ${status}`);
+      }
+    }
+  } catch (e: any) {
+    console.warn("Feishu writeback error:", e.message);
   }
 }

@@ -38,7 +38,33 @@
       "ctaFingerprint": "grab",
       "sceneFingerprint": "city street morning golden office",
       "compositionFingerprint": "back clean angle shot back"
+    },
+    {
+      "taskId": "TASK-20260729-6A42B0",
+      "title": "60km on a single charge? Your summer commute just got a serious upgrade. 🌞",
+      "body": "Ditch the bus and the sweat. The iENYRID ES1 glides you up to 60km on a single charge—so you own the road, not the schedule. With a 2400W motor and dual disc brakes, you’re fast and in control. Grab yours now for the Summer Sale 2026! https://www.ienyrid-eu.com/products/ienyrid-es1-electric-scooter",
+      "tags": "#iENYRIDES1 #ElectricScooter #SummerFreedom #CityCommute",
+      "imagePrompt": "A sleek iENYRID ES1 electric scooter stands on a clean, sunlit city street during golden hour. In the background, modern office buildings rise against a soft, warm sky. A commuter in casual work attire smiles as they prepare to ride, the scooter's LED headlight casting a subtle glow. The scene feels energetic, professional, and carefree—summer in the city. The scooter's foldable design, dual disc brakes, and robust tires are subtly visible. The mood is bright, aspirational, and effortlessly cool.",
+      "createdAt": "2026-07-29T21:25:13.843145",
+      "hookFingerprint": "60km single charge summer commute serious upgrade ditch bus sweat",
+      "sellingPointFingerprint": "2026 https 2400w motor citycommute electricscooter ienyrides1 single charge summerfreedom",
+      "ctaFingerprint": "grab",
+      "sceneFingerprint": "city street golden office summer",
+      "compositionFingerprint": "clean"
+    },
+    {
+      "taskId": "TASK-20260729-651FA7",
+      "title": "60km of Summer Freedom – No Sweat, No Limits.",
+      "body": "Ditch the commute grind. The iENYRID ES1 gives you up to 60km range on a single charge, plus a 2400W motor that eats 30° hills for breakfast. Fold it, carry it, own the city. Grab yours now at ienryid-eu.com!",
+      "tags": "#iENYRIDES1 #ElectricScooter #SummerRide #CityCommute",
+      "imagePrompt": "A modern city street bathed in warm golden hour light, with clean asphalt and sleek office buildings in the background. In the foreground, a professional urban commuter – young, stylish, smiling – rides an iENYRID ES1 electric scooter along a smooth bike lane. The scooter is highlighted in sharp focus, showing its foldable frame, dual disc brakes, and rugged 10-inch tires. Sunlight reflects off the scooter’s black body. The mood is energetic, free, and summer-vibes. Composition: low angle, dynamic motion blur on wheels, clear blue sky with soft clouds.",
+      "createdAt": "2026-07-29T21:30:16.304517",
+      "hookFingerprint": "60km summer freedom sweat limits ditch commute grind",
+      "sellingPointFingerprint": "2400w motor 60km range citycommute electricscooter ienyrides1 single charge summerride",
+      "ctaFingerprint": "grab",
+      "sceneFingerprint": "city street golden office urban",
+      "compositionFingerprint": "clean focus angle blur"
     }
   ],
-  "updatedAt": "2026-07-24T23:06:43.757037"
+  "updatedAt": "2026-07-29T21:30:16.304891"
 }

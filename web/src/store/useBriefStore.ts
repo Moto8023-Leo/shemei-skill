@@ -75,10 +75,6 @@ async function delay(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-// Override bootstrap after it's set so isDemoMode can detect
-export function setBootstrapForDemo(data: any) {
-  (window as any).__BOOTSTRAP__ = data;
-}
 // ── Types ──
 
 export type AnalysisStatus = 'idle' | 'loading' | 'done' | 'error';
@@ -314,7 +310,10 @@ export const useBriefStore = create<BriefState>((set, get) => ({
       // Non-blocking — brief apply is just audit trail
     }
 
+    // Race: SSE stream vs 30s timeout — if backend is unavailable, fallback to demo
     try {
+      const abort = new AbortController();
+      const timeout = setTimeout(() => abort.abort(), 30_000);
       await api.createContentJobStream(
         briefData,
         (status) => {
@@ -333,9 +332,10 @@ export const useBriefStore = create<BriefState>((set, get) => ({
         },
         (err) => {
           streamFailed = true;
-          set({ generationStatus: 'error', errorMessage: `生成失败：${err}` });
         },
+        abort.signal,
       );
+      clearTimeout(timeout);
     } catch {
       streamFailed = true;
     }
@@ -349,7 +349,6 @@ export const useBriefStore = create<BriefState>((set, get) => ({
         streamPhase: '',
       });
     } else if (!streamFailed) {
-      // SSE completed but no data — show error
       set({
         generationStatus: 'error',
         errorMessage: '生成未返回有效内容，请重试。',
