@@ -289,7 +289,7 @@ export const useBriefStore = create<BriefState>((set, get) => ({
 
   applyBrief: async () => {
     const { briefTaskId, briefData, idea } = get();
-    if (!briefTaskId) return;
+    if (!briefTaskId || !briefData) return;
 
     // Map brief fields to streamlined params
     const mappedParams = briefData ? briefToParams(briefData) : {};
@@ -302,20 +302,21 @@ export const useBriefStore = create<BriefState>((set, get) => ({
       },
     });
 
-    // ── Try live API first, fallback to demo content ──
+    // ── Generate content via SSE streaming ──
     set({ generationStatus: 'loading', stage: 3, errorMessage: '', generatedData: null, streamPhase: 'copy' });
 
     let partial: Partial<GeneratedContent> = {};
+    let streamFailed = false;
 
     try {
       await api.applyBrief(briefTaskId);
     } catch {
-      // API unavailable — graceful degradation to demo content below
+      // Non-blocking — brief apply is just audit trail
     }
 
     try {
       await api.createContentJobStream(
-        briefTaskId,
+        briefData,
         (status) => {
           const phaseLabels: Record<string, string> = {
             copy: 'AI 正在生成社媒文案…',
@@ -331,11 +332,12 @@ export const useBriefStore = create<BriefState>((set, get) => ({
           }
         },
         (err) => {
-          // Fallback: use demo data
+          streamFailed = true;
+          set({ generationStatus: 'error', errorMessage: `生成失败：${err}` });
         },
       );
     } catch {
-      // API unavailable — use demo content below
+      streamFailed = true;
     }
 
     if (Object.keys(partial).length > 0) {
@@ -346,21 +348,12 @@ export const useBriefStore = create<BriefState>((set, get) => ({
         errorMessage: '',
         streamPhase: '',
       });
-    } else {
-      // Fallback to demo content when API is down
-      await delay(800);
-      set({ streamPhase: 'AI 正在生成社媒文案…' });
-      await delay(1200);
-      set({ streamPhase: 'AI 正在生成图片 Prompt…' });
-      await delay(800);
-      set({ streamPhase: '全部资产已生成完毕' });
-      await delay(400);
+    } else if (!streamFailed) {
+      // SSE completed but no data — show error
       set({
-        generationStatus: 'done',
-        generatedData: { ...DEMO_GENERATED },
-        stage: 4,
-        errorMessage: '',
-        streamPhase: '',
+        generationStatus: 'error',
+        errorMessage: '生成未返回有效内容，请重试。',
+        stage: 3,
       });
     }
   },
@@ -386,8 +379,8 @@ export const useBriefStore = create<BriefState>((set, get) => ({
   toggleAdvanced: () => set((state) => ({ advancedOpen: !state.advancedOpen })),
 
   generateContent: async () => {
-    const { briefTaskId } = get();
-    if (!briefTaskId) return;
+    const { briefData } = get();
+    if (!briefData) return;
 
     set({ generationStatus: 'loading', stage: 3, errorMessage: '', generatedData: null, streamPhase: 'copy' });
 
@@ -395,7 +388,7 @@ export const useBriefStore = create<BriefState>((set, get) => ({
 
     try {
       await api.createContentJobStream(
-        briefTaskId,
+        briefData,
         (status) => {
           const phaseLabels: Record<string, string> = {
             copy: 'AI 正在生成社媒文案…',
@@ -430,15 +423,15 @@ export const useBriefStore = create<BriefState>((set, get) => ({
   },
 
   regenerate: async () => {
-    const { briefTaskId } = get();
-    if (!briefTaskId) return;
+    const { briefData } = get();
+    if (!briefData) return;
 
     set({ generationStatus: 'loading', errorMessage: '', generatedData: null, streamPhase: 'copy' });
 
     let partial: Partial<GeneratedContent> = {};
 
     await api.createContentJobStream(
-      briefTaskId,
+      briefData,
       (status) => {
         const phaseLabels: Record<string, string> = {
           copy: 'AI 正在生成社媒文案…',
@@ -518,7 +511,7 @@ export const useBriefStore = create<BriefState>((set, get) => ({
       const toneValue = Array.isArray(briefData?.tone) ? briefData.tone.join(' · ') : (params.tone || '');
       const cta = 'SHOP NOW';
 
-      // Step 1: Submit async publish job (fast, returns immediately)
+      // Step 1: Publish to FB+IG via Vercel serverless (synchronous, returns result directly)
       const submit = await api.publishSubmit({
         text: fbFullText,
         x_text: xData.body,
@@ -536,40 +529,24 @@ export const useBriefStore = create<BriefState>((set, get) => ({
         platform: 'all',
       });
 
-      // Step 2: Poll for result (FB/IG/X now run concurrently, typically 30-60s)
-      const maxPolls = 60;  // 60 * 3s = 180s max
-      let finalResult: any = null;
-      for (let i = 0; i < maxPolls; i++) {
-        await new Promise(r => setTimeout(r, 3000));
-        const statusResp = await api.publishStatus(submit.task_id);
-        if (statusResp.status === 'done' || statusResp.status === 'error') {
-          finalResult = statusResp;
-          break;
-        }
-      }
-
-      if (finalResult?.status === 'done') {
-        const platforms = finalResult.result?.platforms || {};
+      // Serverless returns result synchronously (no polling needed)
+      if (submit?.status === 'done') {
+        const platforms = submit.result?.platforms || {};
         const platformNames = Object.keys(platforms).filter(k => platforms[k]?.success);
         const failed = Object.entries(platforms).filter(([_, v]: [string, any]) => !v?.success);
         const summary = failed.length > 0
-          ? `发布完成：${platformNames.length}/${Object.keys(platforms).length} 成功，${failed.map(([k]) => k.toUpperCase()).join('、')} 失败`
-          : '三平台发布任务已下发，查看发布记录确认结果。';
+          ? `发布完成：${platformNames.length}/${Object.keys(platforms).length} 成功\n${failed.map(([k, v]) => `${k.toUpperCase()}: ${(v as any)?.error || '失败'}`).join('\n')}`
+          : '发布完成！FB + IG 已发布。';
         set({ publishStatus: 'done', publishResult: summary, publishedPlatforms: platformNames });
-      } else if (finalResult?.status === 'error') {
-        set({ publishStatus: 'error', errorMessage: `发布失败：${finalResult.result?.error || '未知错误'}` });
+      } else if (submit?.status === 'error') {
+        set({ publishStatus: 'error', errorMessage: `发布失败：${submit.result?.error || '未知错误'}` });
       } else {
-        // Poll exhausted but server is still processing — keep showing loading, don't timeout
-        // The user can refresh the page or check publish records manually
-        set({ publishStatus: 'done', publishResult: '发布任务可能仍在进行，请查看发布记录确认。' });
+        set({ publishStatus: 'done', publishResult: '发布任务已提交，请查看发布记录确认结果。' });
       }
     } catch (err: any) {
-      // Graceful fallback: if publish API is down, simulate publish
-      await delay(2000);
       set({
-        publishStatus: 'done',
-        publishResult: '🎯 Demo 发布模拟成功！(FB/IG/X 三平台)\n\n实际部署后，内容将通过 Meta Graph API 和 X API 发布。',
-        publishedPlatforms: ['facebook', 'instagram', 'x'],
+        publishStatus: 'error',
+        errorMessage: `发布失败：${err?.message || err?.detail || '网络错误，请检查服务是否在线'}`,
       });
     }
   },

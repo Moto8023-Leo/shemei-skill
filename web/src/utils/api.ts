@@ -148,6 +148,17 @@ export interface PublishSubmitResult {
   status: 'processing';
 }
 
+// Vercel serverless returns result directly (no polling)
+export interface PublishSyncResult {
+  status: 'done' | 'error';
+  result: {
+    platforms?: Record<string, PublishResult>;
+    summary?: string;
+    all_ok?: boolean;
+    error?: string;
+  } | null;
+}
+
 export interface PublishStatusResult {
   status: 'processing' | 'done' | 'error';
   result: {
@@ -427,14 +438,9 @@ export const api = {
     return _post<PublishAllResult>('/api/publish/all', req, 180_000);
   },
 
-  /** POST /api/publish/submit — submit async publish job */
-  publishSubmit(req: PublishRequest): Promise<PublishSubmitResult> {
-    return _post<PublishSubmitResult>('/api/publish/submit', req, 15_000);
-  },
-
-  /** GET /api/publish/status/{taskId} — poll async publish result */
-  publishStatus(taskId: string): Promise<PublishStatusResult> {
-    return _get<PublishStatusResult>(`/api/publish/status/${encodeURIComponent(taskId)}`, 10_000);
+  /** POST /api/publish/submit — publish to FB+IG synchronously (Vercel serverless) */
+  publishSubmit(req: PublishRequest): Promise<PublishSyncResult> {
+    return _post<PublishSyncResult>('/api/publish/submit', req, 60_000);
   },
 
   /** POST /api/feishu/writeback */
@@ -490,25 +496,23 @@ export const api = {
     return _post<ApplyBriefResponse>(`/api/creative-brief/${encodeURIComponent(taskId)}/apply`, { taskId, editedFields });
   },
 
-  /** POST /api/content-jobs/stream — SSE streaming with fallback to sync endpoint */
+  /** POST /api/content-jobs/stream — SSE streaming with brief data */
   createContentJobStream(
-    creativeBriefId: string,
+    briefData: Record<string, unknown> | BriefData,
     onStatus: (status: { type: string; key: string; status: string }) => void,
     onData: (data: Record<string, GeneratedAsset>) => void,
     onError: (err: string) => void,
     signal?: AbortSignal,
   ): Promise<void> {
     return new Promise((resolve) => {
+      // Safe serialize: BriefData has specific shape, but we just need to send as JSON
+      const safeBrief = briefData as Record<string, unknown>;
       fetch('/api/content-jobs/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creativeBriefId, assets: ['facebook', 'instagram', 'x', 'image_prompt'] }),
+        body: JSON.stringify({ brief: safeBrief, assets: ['facebook', 'instagram', 'x', 'image_prompt'] }),
         signal,
       }).then(async (resp) => {
-        // SSE endpoint unavailable (405/404) → fallback to sync /api/content-jobs
-        if (resp.status === 405 || resp.status === 404) {
-          return fallbackToSync(creativeBriefId, onData, onError, resolve);
-        }
         if (!resp.ok) {
           let detail = '';
           try { const errBody = await resp.json(); detail = errBody.detail || ''; } catch {}
@@ -544,8 +548,8 @@ export const api = {
         resolve();
       }).catch((err) => {
         if ((err as Error).name === 'AbortError') return resolve();
-        // Network error → fallback to sync
-        fallbackToSync(creativeBriefId, onData, onError, resolve);
+        onError(`网络错误: ${(err as Error).message}`);
+        resolve();
       });
     });
   },

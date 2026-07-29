@@ -2,10 +2,11 @@
 name: shemei_skill
 description: |
   Manage the shemei_skill social media auto-poster project. Start/stop backend & frontend servers,
-  check service status, post to social media (FB/IG/X), run the content daemon, and debug issues.
+  check service status, post to social media (FB/IG/X), run the content daemon, deploy to Vercel,
+  and debug issues.
   Use this skill whenever the user mentions: shemei_skill, shemei, social auto poster, 社媒, iENYRID,
   Kukirin, 发帖, Facebook publishing, Instagram publishing, X/Twitter publishing, 后端启动, 前端启动,
-  检查服务状态, or any social media auto-posting task.
+  检查服务状态, Vercel, deploy, or any social media auto-posting task.
 ---
 
 # shemei_skill — 多品牌社媒自动发布系统
@@ -22,11 +23,21 @@ Project directory: `D:\claude_code_projects\shemei_skill`
 | Daemon | `python scripts/daemon.py` | — |
 | Content factory | `python scripts/content_factory.py` | — |
 | Token validator | `python scripts/validate_tokens.py` | — |
+| Vercel build | `node auto-build.js` | — |
+| Vercel deploy (manual) | `python scripts/deploy_now.py` | — |
+| Static data export | `python scripts/export_static_data.py` | — |
 | IP | 192.168.77.99 | — |
 
 ## Architecture
 
 ```
+                    ┌──────────────────────────────────────┐
+                    │        Vercel Serverless (deploy)     │
+                    │  api/*.ts → FastAPI (localhost:8000)  │
+                    │  web/dist/ → static CDN               │
+                    └──────────────────────────────────────┘
+                                     ↑ (Vercel rewrites)
+                                     │
 Browser (localhost:5174) → Vite proxy → FastAPI (localhost:8000)
                                             ↓
                     ┌───────────────────────┼───────────────────────┐
@@ -40,6 +51,14 @@ Browser (localhost:5174) → Vite proxy → FastAPI (localhost:8000)
                            (product catalog + schedule + writeback)
 ```
 
+### Dual-mode deployment
+
+| Mode | Backend | Frontend | Description |
+|------|---------|----------|-------------|
+| **Local dev** | Python FastAPI `localhost:8000` | Vite dev server `localhost:5174` | Full API access, uses Vite proxy |
+| **Vercel production** | API rewrites → Vercel serverless functions | Static build `web/dist/` | No Python runtime, serverless only |
+| **Demo mode** | None (static hosting) | Embedded sample data | Works offline with hardcoded demo data |
+
 ### Key architecture details
 
 - **AI Copy Generation**: DeepSeek-v4-flash (Creative Brief pipeline) for web UI workbench. Content factory uses DeepSeek-chat with English copywriting system prompt. SSE streaming for live progress in web UI.
@@ -48,6 +67,9 @@ Browser (localhost:5174) → Vite proxy → FastAPI (localhost:8000)
 - **X Posting**: twikit API (cookie-based, fast). Automatic fallback to Playwright Chromium if Cloudflare blocks.
 - **Image Resolution**: API auto-fetches product image from Feishu product table (`iENYRID数据表2`) if no explicit `image_url` provided. Uses fuzzy model-name matching ("iENYRID ES1" matches "ES1").
 - **Feishu Writeback**: All 19 fields written to schedule table (`iENYRID数据表`): product model, title, body, tags, x_text, image prompt, pain point, ad type, scene, discount, promotion, CTA, tone, platform, match code, review status, publish result, publish time, and image attachment.
+- **Publish Orchestration**: Async submit+status pattern — `POST /api/publish/submit` returns `task_id`, then poll `GET /api/publish/status/{taskId}`. Legacy `/api/publish/all` endpoint still available for synchronous use.
+- **Vercel Serverless**: `api/` directory contains TypeScript serverless functions (bootstrap, brands, events, health, history, models, product-image, publish-records, visual/style-pool) proxying to Feishu Bitable directly — no Python dependency on deploy.
+- **Auto-build**: `auto-build.js` handles `cd web && npm install && npm run build` for Vercel output directory `web/dist/`.
 
 ## Supported Platforms
 
@@ -114,8 +136,10 @@ Post content to social media (CLI).
 
 Test publish via API endpoint (great for debugging).
 
+**Async (recommended):**
 ```bash
-curl -s -X POST "http://localhost:8000/api/publish/all" \
+# Submit publish job
+curl -s -X POST "http://localhost:8000/api/publish/submit" \
   -H "Content-Type: application/json" \
   -d '{"text":"<body>","x_text":"<tweet>","image_url":"","brand":"iENYRID",
        "model_name":"iENYRID ES1","title":"<title>","tags":"<4 tags>",
@@ -123,6 +147,16 @@ curl -s -X POST "http://localhost:8000/api/publish/all" \
        "pain_point":"续航焦虑","ad_type":"单品推广","scene_style":"城市通勤",
        "discount":"夏季促销","promotion":"10%折扣","cta":"立即购买",
        "tone":"亲和有趣","platform":"FB+X+IG"}'
+
+# Poll status
+curl -s "http://localhost:8000/api/publish/status/<task_id>"
+```
+
+**Sync (legacy):**
+```bash
+curl -s -X POST "http://localhost:8000/api/publish/all" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"<body>","x_text":"<tweet>",...}'
 ```
 
 Individual platform endpoints: `/api/publish/fb`, `/api/publish/ig`, `/api/publish/x`
@@ -142,7 +176,7 @@ Run content factory to generate AI ad copy.
 1. `cd D:\claude_code_projects\shemei_skill && python scripts/content_factory.py`
 2. `--dry-run` for preview without Feishu writeback
 3. `--test "iENYRID ES1"` to test generation for a specific model
-4. The generation pipeline: product specs loaded from Feishu → DeepSeek with English copywriting prompt → 2-pass AI self-review → writeback to Feishu
+4. The generation pipeline: product specs loaded from Feishu → DeepSeek with English copywriting prompt → 1-pass AI self-review → writeback to Feishu
 
 ### /shemei_skill test-generate [--model <name>]
 
@@ -160,7 +194,7 @@ Shows: title, body, tags, x_text (tweet), image_prompt. No Feishu reads/writes �
 End-to-end publish test with auto image fetch from product table.
 
 ```bash
-curl -s -X POST "http://localhost:8000/api/publish/all" \
+curl -s -X POST "http://localhost:8000/api/publish/submit" \
   -H "Content-Type: application/json" \
   -d '{"text":"Test body...","x_text":"Test tweet...","image_url":"",
        "brand":"iENYRID","model_name":"iENYRID ES1",
@@ -180,6 +214,35 @@ powershell -Command "Stop-Process -Id (Get-NetTCPConnection -LocalPort 8000).Own
 sleep 1
 cd D:\claude_code_projects\shemei_skill && python server.py &
 ```
+
+### /shemei_skill deploy
+
+Build and prepare for Vercel deployment.
+
+```bash
+# Auto-build (uses node auto-build.js)
+cd D:\claude_code_projects\shemei_skill && node auto-build.js
+
+# Or manual: export static data + build frontend
+python scripts/export_static_data.py
+cd web && npm run build
+```
+
+Vercel config:
+- **buildCommand**: `cd web && npm install && npm run build`
+- **outputDirectory**: `web/dist`
+- **rewrites**: `/api/(.*)` → serverless functions, `/(.*)` → `index.html` (SPA)
+
+### /shemei_skill deploy-static
+
+Export static data snapshot for GitHub Pages / demo hosting.
+
+```bash
+python scripts/export_static_data.py
+# Outputs: scripts/static_snapshot/*.json
+```
+
+GitHub Actions workflow (`.github/workflows/export-data.yml`) runs hourly to keep static data fresh.
 
 ## Debugging
 
@@ -202,6 +265,9 @@ python scripts/validate_tokens.py --platform x     # X only
 | `check_x()` always returns False | sync function passed to `run_until_complete` | Fixed: direct sync call + `asyncio.run()` |
 | Hashtag #iENYRIDM4ProS+Max broken | `+` cuts hashtag on all platforms | Fixed: `replace("+", "Plus")` → `#iENYRIDM4ProSPlusMax` |
 | `list_models()` only returns ES1 | duplicate definition shadowed Feishu path | Fixed: removed duplicate |
+| White screen on Vercel | `base: '/shemei-skill/'` deployed to root | Fixed: `base: '/'` in vite.config.ts |
+| `t.map is not a function` crash | `visualDna` undefined on race condition | Fixed: null-guard in VisualDNA.tsx |
+| Static deploy can't reach API | hardcoded `localhost:8000` in production | Fixed: dynamic host detection in `api.ts` (`getBaseUrl()`) |
 
 ### Quick checks
 ```bash
@@ -216,6 +282,9 @@ curl -s "http://localhost:8000/api/product-image/iENYRID%20ES1?brand=iENYRID"
 
 # Content generation test
 python scripts/content_factory.py --test "iENYRID ES1"
+
+# Vercel health
+curl -s "https://shemei-skill.vercel.app/api/health"
 ```
 
 ### Project file map
@@ -224,7 +293,7 @@ python scripts/content_factory.py --test "iENYRID ES1"
 |------|------|
 | `server.py` | FastAPI backend — all API endpoints + publish logic + Feishu writeback + Creative Brief pipeline + SSE streaming |
 | `scripts/content_factory.py` | AI copy generation — DeepSeek prompt builder + 1-pass AI self-review |
-| `scripts/publish_engine.py` | Multi-platform publish orchestrator (FB→IG→X) + CLI |
+| `scripts/publish_engine.py` | Multi-platform publish orchestrator (FB→IG→X) + CLI + async submit/status pattern |
 | `scripts/feishu_driver.py` | Feishu Bitable CRUD — records, attachments, auth |
 | `scripts/fb_api.py` | Facebook Graph API v22.0 poster |
 | `scripts/ig_api.py` | Instagram poster — FB bridge upload → container → publish |
@@ -237,17 +306,39 @@ python scripts/content_factory.py --test "iENYRID ES1"
 | `scripts/image_watcher.py` | Monitors `images/incoming/`, matches to Feishu by match code |
 | `scripts/utils.py` | Shared helpers — `guess_mime()`, `MIME_MAP` |
 | `scripts/validate_tokens.py` | API token/credential validator |
+| `scripts/deploy_now.py` | Manual Vercel deploy script |
+| `scripts/export_static_data.py` | Export bootstrap JSON snapshot for static hosting |
+| `scripts/github_push_deploy.py` | Push static data to GitHub Pages |
 | `post_now.py` | CLI one-click post entry point |
 | `config.yaml` | Proxy, posting intervals, platform settings |
-| `web/src/store/useFormStore.ts` | Frontend Zustand store — all form state + API calls |
-| `web/src/components/` | React components — FormPanel, PreviewPanel, BrandSelector, ImageUpload |
+| `auto-build.js` | Vercel auto-build runner (`npm install && npm run build`) |
+| `vercel.json` | Vercel config — build command, output dir, rewrites |
+| `package.json` | Root package.json for Vercel build context |
+| `api/` | Vercel serverless functions (TypeScript) — bootstrap, brands, events, health, history, models, product-image, publish-records, visual/style-pool |
+| `api/feishu-client.ts` | Shared Feishu Bitable HTTP client for serverless functions |
+| `web/src/App.tsx` | HashRouter with 10 routes + AppLayout boot sequence |
+| `web/src/App.css` | Global styles (~920 lines), CSS variables + BEM-like |
+| `web/src/main.tsx` | Entry — wraps App in ErrorBoundary |
+| `web/src/utils/api.ts` | Unified typed API client — timeout, retry, dynamic host detection, SSE streaming with sync fallback |
+| `web/src/store/useAppStore.ts` | Global state — 3-tier boot (live→static→demo), toast, health monitor |
+| `web/src/store/useBriefStore.ts` | Workbench 4-stage state machine (idea→brief→generate→publish) |
+| `web/src/store/useCalendarStore.ts` | Marketing calendar state |
+| `web/src/store/useStudioStore.ts` | Legacy studio state |
+| `web/src/pages/BrandManagement.tsx` | Inline-editable brand config — website, tone, positioning, audiences, visualDNA |
+| `web/src/pages/VisualDNA.tsx` | Visual style DNA viewer (null-safe against t.map crash) |
+| `web/src/components/common/ErrorBoundary.tsx` | React error boundary — catch + friendly reload button |
+| `web/src/components/layout/CommandBar.tsx` | Workflow-aware action bar — context-sensitive buttons per stage |
+| `web/src/components/layout/Sidebar.tsx` | Side nav with SVG icons (10 Lucide-style) |
 
 ## Key Design Decisions
 
 1. **AI model**: DeepSeek-chat (Chinese API, $0.14/M tokens) — not Claude. System prompt in English. Temperature 0.85.
 2. **X posting**: twikit API first (fast, no browser). Falls back to Playwright Chromium (headless=False, visible for debugging).
 3. **Image handling**: `_resolve_image()` → explicit URL first → auto-fetch from Feishu product table → None. Downloaded to temp file, cleaned up after publish.
-4. **Feishu writeback**: `publish_all` endpoint creates new record with all 19 fields + uploads image as attachment. Individual `publish_fb/ig/x` endpoints publish only (no writeback).
+4. **Feishu writeback**: `publish_all`/`publish_submit` endpoints create new record with all 19 fields + uploads image as attachment. Individual `publish_fb/ig/x` endpoints publish only (no writeback).
 5. **Match code**: `MMDD-N` format, persisted in `.match_counter` file. Separate counter for content_factory and web publish.
 6. **Brand config**: `scripts/brand_config.py` maps brand names → table IDs + credentials. Currently only iENYRID has credentials.
 7. **Cross-platform**: All Facebook posting uses `cross_post_instagram=False` in publish_engine (IG posted separately via its own API path).
+8. **Dual deployment**: Local dev uses Python FastAPI (full API). Vercel uses serverless TypeScript functions for read endpoints + rewrites to Python for publish. Demo mode works fully offline with embedded sample data.
+9. **Frontend resilience**: 3-tier boot sequence (live API → static data → embedded demo), ErrorBoundary wrapper, dynamic API host detection (auto-switches between localhost proxy and production origin), toast notification system.
+10. **Async publish**: `POST /api/publish/submit` returns immediately with `task_id`, frontend polls `GET /api/publish/status/{taskId}` — avoids timeout on slow FB/IG/X posting.
