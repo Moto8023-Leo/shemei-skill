@@ -438,9 +438,9 @@ export const api = {
     return _post<PublishAllResult>('/api/publish/all', req, 180_000);
   },
 
-  /** POST /api/publish/submit — publish to FB+IG synchronously (Vercel serverless) */
+  /** POST /api/publish?action=submit — publish to FB+IG synchronously (Vercel serverless) */
   publishSubmit(req: PublishRequest): Promise<PublishSyncResult> {
-    return _post<PublishSyncResult>('/api/publish/submit', req, 60_000);
+    return _post<PublishSyncResult>('/api/publish?action=submit', req, 60_000);
   },
 
   /** POST /api/feishu/writeback */
@@ -486,14 +486,14 @@ export const api = {
   // Creative Brief Workflow (Phase 1)
   // ------------------------------------------------------------------
 
-  /** POST /api/creative-brief */
+  /** POST /api/generate?action=brief */
   creativeBrief(idea: string, brandId: string = 'ienyrid', productId: string = ''): Promise<CreativeBriefResponse> {
-    return _post<CreativeBriefResponse>('/api/creative-brief', { idea, brandId, productId }, 120_000);
+    return _post<CreativeBriefResponse>('/api/generate?action=brief', { idea, brandId, productId }, 120_000);
   },
 
-  /** POST /api/creative-brief/{taskId}/apply */
+  /** applyBrief — no-op on serverless (brief is stateless), just returns success */
   applyBrief(taskId: string, editedFields: Record<string, unknown> = {}): Promise<ApplyBriefResponse> {
-    return _post<ApplyBriefResponse>(`/api/creative-brief/${encodeURIComponent(taskId)}/apply`, { taskId, editedFields });
+    return Promise.resolve({ taskId, status: 'confirmed', brief: {} as any, appliedAt: new Date().toISOString() });
   },
 
   /** POST /api/content-jobs/stream — SSE streaming with brief data */
@@ -507,7 +507,7 @@ export const api = {
     return new Promise((resolve) => {
       // Safe serialize: BriefData has specific shape, but we just need to send as JSON
       const safeBrief = briefData as Record<string, unknown>;
-      fetch('/api/content-jobs/stream', {
+      fetch('/api/generate?action=stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brief: safeBrief, assets: ['facebook', 'instagram', 'x', 'image_prompt'] }),
