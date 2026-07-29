@@ -211,6 +211,7 @@ function PublishCard() {
   const generatedData = useBriefStore((s) => s.generatedData);
   const publishStatus = useBriefStore((s) => s.publishStatus);
   const publishResult = useBriefStore((s) => s.publishResult);
+  const publishedPlatforms = useBriefStore((s) => s.publishedPlatforms);
   const publishContent = useBriefStore((s) => s.publishContent);
 
   // Hide card entirely when there's no generated data or no brief (workflow not started)
@@ -218,14 +219,17 @@ function PublishCard() {
 
   // ── Done State ──
   if (publishStatus === 'done') {
+    const fbOk = publishedPlatforms.includes('fb');
+    const igOk = publishedPlatforms.includes('ig');
+    const xOk = publishedPlatforms.includes('x');
     return (
       <section className="rail-card review-card done-card">
         <div className="rail-title"><div><span className="check-icon">✓</span>已发布</div></div>
         <p className="published-hint">{publishResult || '三平台发布任务已下发'}</p>
         <div className="platform-tags">
-          <span className="ptag ptag-fb">FB ✓</span>
-          <span className="ptag ptag-ig">IG ✓</span>
-          <span className="ptag ptag-x">X ✓</span>
+          <span className={`ptag ptag-fb${fbOk ? '' : ' ptag-fail'}`}>FB {fbOk ? '✓' : '✗'}</span>
+          <span className={`ptag ptag-ig${igOk ? '' : ' ptag-fail'}`}>IG {igOk ? '✓' : '✗'}</span>
+          <span className={`ptag ptag-x${xOk ? '' : ' ptag-fail'}`}>X {xOk ? '✓' : '✗'}</span>
         </div>
         <button className="publish-main done-btn" type="button" disabled>✓ 发布完成</button>
         <button className="sync-feishu" type="button" disabled>回写飞书多维表格</button>
