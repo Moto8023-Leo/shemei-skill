@@ -174,7 +174,7 @@ export interface BootstrapResponse {
 // API base URL — auto-detect environment
 // ------------------------------------------------------------------
 
-const VERCEL_BASE = 'https://shemei-skill.vercel.app';
+const VERCEL_BASE = 'https://shemei-skill-git-main-moto8023.vercel.app';
 
 function getBaseUrl(): string {
   // In development (localhost) use relative paths → Vite proxy handles it

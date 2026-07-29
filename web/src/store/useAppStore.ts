@@ -108,7 +108,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Try static data fallback (deployed to /data/ on GitHub Pages)
     try {
-      const fallbackResp = await fetch('/shemei-skill/data/bootstrap.json');
+      const fallbackResp = await fetch('/data/bootstrap.json');
       if (fallbackResp.ok) {
         const fallbackData = await fallbackResp.json();
         if (fallbackData?.mode === 'live') {
