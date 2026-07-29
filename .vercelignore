@@ -2,7 +2,6 @@ server.py
 requirements*.txt
 scripts/
 storage/
-api/feishu-client.ts
 diagnosis-screenshots/
 .env
 .env.local
