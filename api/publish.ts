@@ -283,7 +283,7 @@ async function writeFeishuResult(
   summary: string
 ) {
   const FEISHU_APP_TOKEN = process.env.FEISHU_APP_TOKEN || "QFrowVpL3iIMAYkCE2PcaZCEnJe";
-  const tableId = process.env.FEISHU_SCHEDULE_TABLE_ID || "tblTZTeXWry93slq";
+  const tableId = process.env.FEISHU_TABLE_ID || process.env.FEISHU_SCHEDULE_TABLE_ID || "tblTZTeXWry93slq";
   const brand = (body.brand || "ienyrid").toLowerCase();
   // Kukirin uses a different table
   const scheduleTableId = brand === "kukirin" ? "tblw90DsOkPcqp5T" : tableId;
