@@ -149,25 +149,24 @@ async function resolveFeishuImageUrl(feishuUrl: string): Promise<string> {
     headers: { "Authorization": `Bearer ${tokenData.tenant_access_token}` },
   });
   if (!imgResp.ok) throw new Error(`Feishu image download failed: ${imgResp.status}`);
-  const imageBytes = await imgResp.arrayBuffer();
-  if (imageBytes.byteLength === 0) throw new Error("Feishu image download returned empty");
+  const imageBuffer = await imgResp.arrayBuffer();
+  if (imageBuffer.byteLength === 0) throw new Error("Feishu image download returned empty");
 
   // Step 3: Upload image bytes to FB as unpublished photo (multipart)
   const boundary = "----FormBoundary" + Math.random().toString(36).slice(2);
-  const fieldName = "source";
-  const fileName = "image.png";
-
-  let body = "";
-  body += `--${boundary}\r\n`;
-  body += `Content-Disposition: form-data; name="${fieldName}"; filename="${fileName}"\r\n`;
-  body += `Content-Type: image/png\r\n\r\n`;
-  const bodyStart = new TextEncoder().encode(body);
-  const bodyEnd = new TextEncoder().encode(`\r\n--${boundary}--\r\n`);
-
-  const fullBody = new Uint8Array(bodyStart.length + imageBytes.byteLength + bodyEnd.length);
-  fullBody.set(bodyStart, 0);
-  fullBody.set(new Uint8Array(imageBytes), bodyStart.length);
-  fullBody.set(bodyEnd, bodyStart.length + imageBytes.byteLength);
+  const enc = new TextEncoder();
+  const parts: Uint8Array[] = [
+    enc.encode(`--${boundary}\r\n`),
+    enc.encode(`Content-Disposition: form-data; name="source"; filename="image.png"\r\n`),
+    enc.encode(`Content-Type: image/png\r\n\r\n`),
+    new Uint8Array(imageBuffer),
+    enc.encode(`\r\n--${boundary}--\r\n`),
+  ];
+  let totalLen = 0;
+  for (const p of parts) totalLen += p.length;
+  const fullBody = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const p of parts) { fullBody.set(p, offset); offset += p.length; }
 
   const uploadUrl = `${FB_GRAPH_URL}/${FB_PAGE_ID}/photos?access_token=${encodeURIComponent(FB_ACCESS_TOKEN)}&published=false`;
   const uploadResp = await fetch(uploadUrl, {
@@ -175,17 +174,15 @@ async function resolveFeishuImageUrl(feishuUrl: string): Promise<string> {
     headers: { "Content-Type": `multipart/form-data; boundary=${boundary}` },
     body: fullBody,
   });
-  const uploadData = await uploadResp.json() as any;
+  const uploadData = (await uploadResp.json()) as any;
   if (!uploadResp.ok || !uploadData.id) {
     throw new Error(`FB upload failed: ${uploadData?.error?.message || uploadResp.status}`);
   }
-    throw new Error(`FB upload failed: ${uploadData?.error?.message || uploadResp.status}`);
-  }
 
-  // Step 3: Get the public URL from FB
+  // Step 4: Get the public CDN URL from FB
   const photoUrl = `${FB_GRAPH_URL}/${uploadData.id}?access_token=${encodeURIComponent(FB_ACCESS_TOKEN)}&fields=images`;
   const photoResp = await fetch(photoUrl);
-  const photoData = await photoResp.json() as any;
+  const photoData = (await photoResp.json()) as any;
   const publicUrl = photoData?.images?.[0]?.source;
   if (!publicUrl) throw new Error("Failed to get public CDN URL from FB");
 
