@@ -365,9 +365,32 @@ export const api = {
   },
 
   /** GET /api/models */
+  /** GET /api/bootstrap — serves models + products (replaces /api/models) */
   models(brand: string): Promise<ModelsResponse> {
-    return _get<ModelsResponse>(`/api/models?brand=${encodeURIComponent(brand)}`);
+    const b = brand || 'iENYRID';
+    return _get<BootstrapResponse>('/api/bootstrap?brand=' + encodeURIComponent(b), 20_000).then(function(boot) {
+      return {
+        models: (boot.products || []).map(function(p, i) { return {
+          name: p.model || p.name || ('Product-' + i),
+          brand: p.brandId || b,
+          motor: p.motor || '',
+          battery: p.battery || '',
+          range: p.range || '',
+          speed: p.topSpeed || '',
+          weight: p.maxLoad || '',
+          climb: '',
+          price: String(p.price || ''),
+          selling_point: Array.isArray(p.sellingPoints) ? p.sellingPoints.join(', ') : (p.sellingPoints || ''),
+          advantage: '',
+          link: p.url || '',
+          has_image: p.hasImage || false,
+        }; }),
+        brand: b,
+      };
+    });
   },
+
+  /** GET /api/events */
 
   /** POST /api/generate */
   generate(req: Partial<GenerateRequest>): Promise<GenerateResponse> {
@@ -381,64 +404,47 @@ export const api = {
     return _get<any>(url);
   },
 
-  /** GET /api/history */
-  history(params?: {
-    brandId?: string;
-    productId?: string;
-    limit?: number;
-    offset?: number;
-  }): Promise<any> {
-    const search = new URLSearchParams();
-    if (params?.brandId) search.set('brandId', params.brandId);
-    if (params?.productId) search.set('productId', params.productId);
-    if (params?.limit) search.set('limit', String(params.limit));
-    if (params?.offset) search.set('offset', String(params.offset));
-    const qs = search.toString();
-    return _get<any>(`/api/history${qs ? '?' + qs : ''}`);
+  /** GET /api/history — removed (serverless), now bootstap provides what's needed */
+  history(_params?: any): Promise<any> {
+    return Promise.resolve({ entries: [], total: 0, limit: 50, offset: 0 });
   },
 
-  /** POST /api/history */
-  saveHistory(entry: Record<string, unknown>): Promise<any> {
-    return _post<any>('/api/history', entry);
+  /** POST /api/history — no-op on serverless */
+  saveHistory(_entry: Record<string, unknown>): Promise<any> {
+    return Promise.resolve({ ok: true });
   },
 
-  /** GET /api/product-image/:name */
-  productImage(modelName: string, brand: string): Promise<{ image_url: string }> {
-    return _get<{ image_url: string }>(
-      `/api/product-image/${encodeURIComponent(modelName)}?brand=${encodeURIComponent(brand)}`,
-    );
+  /** GET /api/product-image/:name — removed (serverless), use bootstrap.products[].hasImage */
+  productImage(_modelName: string, _brand: string): Promise<{ image_url: string }> {
+    return Promise.resolve({ image_url: '' });
   },
 
   /** POST /api/upload-image */
   uploadImage(brand: string, model: string, file: File): Promise<{ success: boolean }> {
-    const fd = new FormData();
-    fd.append('brand', brand);
-    fd.append('model', model);
-    fd.append('file', file);
-    return _postForm<{ success: boolean }>('/api/upload-image', fd, 60_000);
+    return Promise.resolve({ success: false });
   },
 
-  /** POST /api/publish/fb */
+  /** POST /api/publish/fb — removed (serverless), use /api/publish?action=fb */
   publishFb(req: PublishRequest): Promise<PublishResult> {
-    return _post<PublishResult>('/api/publish/fb', req, 60_000);
+    return _post<PublishResult>('/api/publish?action=fb', req, 60_000);
   },
 
-  /** POST /api/publish/ig */
+  /** POST /api/publish/ig — removed (serverless), use /api/publish?action=ig */
   publishIg(req: PublishRequest): Promise<PublishResult> {
-    return _post<PublishResult>('/api/publish/ig', req, 60_000);
+    return _post<PublishResult>('/api/publish?action=ig', req, 60_000);
   },
 
-  /** POST /api/publish/x */
+  /** POST /api/publish/x — X requires local Python, returns skipped */
   publishX(req: PublishRequest): Promise<PublishResult> {
-    return _post<PublishResult>('/api/publish/x', req, 60_000);
+    return Promise.resolve({ success: false, error: 'X publishing requires local Python (twikit/Playwright).' });
   },
 
-  /** POST /api/publish/all — legacy synchronous path, prefer submit+status */
+  /** POST /api/publish/all — legacy, use /api/publish?action=submit */
   publishAll(req: PublishRequest): Promise<PublishAllResult> {
-    return _post<PublishAllResult>('/api/publish/all', req, 180_000);
+    return _post<PublishAllResult>('/api/publish?action=submit', req, 60_000);
   },
 
-  /** POST /api/publish?action=submit — publish to FB+IG synchronously (Vercel serverless) */
+  /** POST /api/publish — synchronous FB+IG publish (Vercel serverless) */
   publishSubmit(req: PublishRequest): Promise<PublishSyncResult> {
     return _post<PublishSyncResult>('/api/publish?action=submit', req, 60_000);
   },
@@ -554,43 +560,16 @@ export const api = {
     });
   },
 
-  /** GET /api/content-jobs/{jobId} */
+  /** GET /api/content-jobs/{jobId} — removed (serverless) */
   getContentJob(jobId: string): Promise<ContentJobResponse> {
-    return _get<ContentJobResponse>(`/api/content-jobs/${encodeURIComponent(jobId)}`);
+    return Promise.resolve({ jobId, status: 'error', generated: {} as any, briefId: '', createdAt: '', mode: 'demo' });
   },
 
   /** GET /api/creative-brief/{taskId} */
   getCreativeBrief(taskId: string): Promise<CreativeBriefResponse> {
-    return _get<CreativeBriefResponse>(`/api/creative-brief/${encodeURIComponent(taskId)}`);
+    return Promise.resolve({ taskId, status: 'draft', brief: {} as any, appliedAt: '', ...{} } as any);
   },
 };
-
-/** Fallback: use sync /api/content-jobs when SSE stream endpoint is unavailable */
-function fallbackToSync(
-  creativeBriefId: string,
-  onData: (data: Record<string, GeneratedAsset>) => void,
-  onError: (err: string) => void,
-  resolve: () => void,
-) {
-  fetch('/api/content-jobs', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ creativeBriefId, assets: ['facebook', 'instagram', 'x', 'image_prompt'] }),
-  }).then(async (resp) => {
-    if (!resp.ok) {
-      let detail = '';
-      try { const errBody = await resp.json(); detail = errBody.detail || ''; } catch {}
-      onError(`生成请求失败 (${resp.status})${detail ? ': ' + detail : ''}`);
-    } else {
-      const data = await resp.json();
-      if (data.generated) onData(data.generated);
-    }
-    resolve();
-  }).catch((err) => {
-    onError(`网络错误: ${(err as Error).message}`);
-    resolve();
-  });
-}
 
 /** Creative Brief API response types */
 export interface ConfidenceFactors {
