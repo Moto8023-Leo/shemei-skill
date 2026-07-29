@@ -1,13 +1,17 @@
 /**
- * POST /api/publish/submit
+ * POST /api/publish
  *
- * Publish to Facebook + Instagram synchronously (in parallel).
- * Returns the full result once both platforms complete (typically 8-15s).
+ * Combined publish endpoint for Facebook + Instagram via Meta Graph API v22.0.
+ * Routes: POST /api/publish?action=submit|fb|ig
  *
- * X/Twitter publishing requires Python (twikit/Playwright) and is NOT supported here.
- * Use the local Python server for X publishing.
+ * - submit: publishes to FB + IG in parallel, returns synchronous result
+ * - fb: publishes to Facebook only (legacy support)
+ * - ig: publishes to Instagram only (legacy support)
+ *
+ * X/Twitter publishing requires Python (twikit/Playwright) — not supported in serverless.
  *
  * Required env: FB_PAGE_ID, FB_ACCESS_TOKEN, IG_USER_ID
+ * Optional env: FB_GRAPH_URL (default: https://graph.facebook.com/v22.0)
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
@@ -19,6 +23,8 @@ const IG_USER_ID = process.env.IG_USER_ID || "";
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
+
+// ── Facebook ──
 
 async function publishToFacebook(text: string, imageUrl?: string): Promise<{ success: boolean; url?: string; error?: string }> {
   if (!FB_PAGE_ID || !FB_ACCESS_TOKEN) {
@@ -37,10 +43,7 @@ async function publishToFacebook(text: string, imageUrl?: string): Promise<{ suc
     apiUrl += `?${params.toString()}`;
   } else {
     apiUrl = `${FB_GRAPH_URL}/${FB_PAGE_ID}/feed`;
-    const params = new URLSearchParams({
-      access_token: FB_ACCESS_TOKEN,
-      message: text,
-    });
+    const params = new URLSearchParams({ access_token: FB_ACCESS_TOKEN, message: text });
     apiUrl += `?${params.toString()}`;
   }
 
@@ -54,26 +57,23 @@ async function publishToFacebook(text: string, imageUrl?: string): Promise<{ suc
   return { success: false, error: data?.error?.message || `FB API error (${resp.status})` };
 }
 
+// ── Instagram (4-step Graph API flow) ──
+
 async function publishToInstagram(text: string, imageUrl: string): Promise<{ success: boolean; url?: string; error?: string }> {
   if (!IG_USER_ID || !FB_PAGE_ID || !FB_ACCESS_TOKEN) {
     return { success: false, error: "IG credentials not configured" };
   }
 
-  // Step 1: Upload photo to FB as unpublished → get CDN URL
+  // Step 1: Upload to FB as unpublished → get CDN URL
   const uploadUrl = `${FB_GRAPH_URL}/${FB_PAGE_ID}/photos`;
-  const uploadParams = new URLSearchParams({
-    access_token: FB_ACCESS_TOKEN,
-    published: "false",
-    url: imageUrl,
-  });
-
+  const uploadParams = new URLSearchParams({ access_token: FB_ACCESS_TOKEN, published: "false", url: imageUrl });
   const uploadResp = await fetch(`${uploadUrl}?${uploadParams}`, { method: "POST" });
   const uploadData = await uploadResp.json() as any;
   if (!uploadResp.ok || !uploadData.id) {
     return { success: false, error: `Photo upload: ${uploadData?.error?.message || uploadResp.status}` };
   }
 
-  // Get public CDN URL
+  // Step 1b: Get public CDN URL
   const photoUrl = `${FB_GRAPH_URL}/${uploadData.id}?access_token=${encodeURIComponent(FB_ACCESS_TOKEN)}&fields=images`;
   const photoResp = await fetch(photoUrl);
   const photoData = await photoResp.json() as any;
@@ -82,11 +82,7 @@ async function publishToInstagram(text: string, imageUrl: string): Promise<{ suc
 
   // Step 2: Create IG media container
   const containerUrl = `${FB_GRAPH_URL}/${IG_USER_ID}/media`;
-  const containerParams = new URLSearchParams({
-    access_token: FB_ACCESS_TOKEN,
-    image_url: publicUrl,
-    caption: text,
-  });
+  const containerParams = new URLSearchParams({ access_token: FB_ACCESS_TOKEN, image_url: publicUrl, caption: text });
   const containerResp = await fetch(`${containerUrl}?${containerParams}`, { method: "POST" });
   const containerData = await containerResp.json() as any;
   if (!containerResp.ok || !containerData.id) {
@@ -94,7 +90,7 @@ async function publishToInstagram(text: string, imageUrl: string): Promise<{ suc
   }
   const containerId = containerData.id;
 
-  // Step 3: Poll container until FINISHED (max 45s)
+  // Step 3: Poll until FINISHED (max 45s)
   let ready = false;
   const started = Date.now();
   while (Date.now() - started < 45000) {
@@ -111,10 +107,7 @@ async function publishToInstagram(text: string, imageUrl: string): Promise<{ suc
 
   // Step 4: Publish
   const publishUrl = `${FB_GRAPH_URL}/${IG_USER_ID}/media_publish`;
-  const publishParams = new URLSearchParams({
-    access_token: FB_ACCESS_TOKEN,
-    creation_id: containerId,
-  });
+  const publishParams = new URLSearchParams({ access_token: FB_ACCESS_TOKEN, creation_id: containerId });
   const publishResp = await fetch(`${publishUrl}?${publishParams}`, { method: "POST" });
   const publishData = await publishResp.json() as any;
 
@@ -124,18 +117,43 @@ async function publishToInstagram(text: string, imageUrl: string): Promise<{ suc
   return { success: false, error: `Publish: ${publishData?.error?.message || publishResp.status}` };
 }
 
+// ── Handler ──
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { text, x_text, image_url, brand } = req.body || {};
+  const action = (req.query.action as string) || "submit";
+  const { text, x_text, image_url } = req.body || {};
 
   if (!text?.trim()) {
     return res.status(400).json({ error: "text is required" });
   }
 
-  // Validate credentials
+  // ── action=fb — single-platform Facebook publish ──
+  if (action === "fb") {
+    const result = await publishToFacebook(text, image_url || undefined);
+    return res.status(200).json({
+      ...result,
+      platforms: ["facebook"],
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  // ── action=ig — single-platform Instagram publish ──
+  if (action === "ig") {
+    if (!image_url?.trim()) {
+      return res.status(400).json({ success: false, error: "image_url is required for Instagram posts" });
+    }
+    const result = await publishToInstagram(text, image_url);
+    return res.status(200).json({
+      ...result,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  // ── action=submit — FB+IG parallel publish (default) ──
   if (!FB_PAGE_ID || !FB_ACCESS_TOKEN) {
     return res.status(503).json({
       status: "error",
@@ -144,7 +162,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Publish FB + IG in parallel (synchronous response)
     const [fbResult, igResult] = await Promise.all([
       publishToFacebook(text, image_url || undefined),
       image_url
@@ -155,7 +172,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const platforms: Record<string, { success: boolean; url?: string; error?: string }> = {
       fb: fbResult,
       ig: igResult,
-      // X: skipped — requires twikit/Playwright (Python only, can't run in serverless)
       x: {
         success: false,
         error: "X publishing requires local Python (twikit/Playwright). Use the desktop app to publish to X.",
@@ -170,17 +186,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       status: "done",
-      result: {
-        platforms,
-        summary: summaryUrls || "No platforms published successfully",
-        allOk: allOk,
-      },
+      result: { platforms, summary: summaryUrls || "No platforms published successfully", allOk },
     });
   } catch (e: any) {
-    console.error("publish/submit error:", e);
-    return res.status(502).json({
-      status: "error",
-      result: { error: e.message || "Publish failed" },
-    });
+    console.error("publish error:", e);
+    return res.status(502).json({ status: "error", result: { error: e.message || "Publish failed" } });
   }
 }

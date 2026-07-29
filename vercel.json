@@ -2,11 +2,8 @@
   "buildCommand": "cd web && npm install && npm run build",
   "outputDirectory": "web/dist",
   "functions": {
-    "api/creative-brief.ts": { "maxDuration": 45 },
-    "api/content-jobs-stream.ts": { "maxDuration": 55 },
-    "api/publish/submit.ts": { "maxDuration": 55 },
-    "api/publish/fb.ts": { "maxDuration": 15 },
-    "api/publish/ig.ts": { "maxDuration": 45 }
+    "api/generate.ts": { "maxDuration": 55 },
+    "api/publish.ts": { "maxDuration": 55 }
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
