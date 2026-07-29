@@ -123,6 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sellingPoints: getText(f, "产品卖点") ? [getText(f, "产品卖点")] : [],
         structureLock: "",
         hasImage: !!getImageUrl(f, "产品图片"),
+        imageUrl: getImageUrl(f, "产品图片"),
       });
     }
     if (feishuProducts.length > 0) {

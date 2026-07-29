@@ -500,13 +500,8 @@ export const useBriefStore = create<BriefState>((set, get) => ({
           const firstProduct = products[0];
           if (firstProduct) {
             modelName = modelName || firstProduct.model || firstProduct.name || '';
-            if (firstProduct.hasImage) {
-              const imgResp = await fetch(`/api/product-image/${encodeURIComponent(modelName)}?brand=iENYRID`);
-              if (imgResp.ok) {
-                const imgData = await imgResp.json();
-                imageUrl = imgData.image_url || '';
-              }
-            }
+            // Use imageUrl from bootstrap directly (fetched from Feishu product table)
+            imageUrl = firstProduct.imageUrl || '';
           }
         }
       } catch { /* use empty imageUrl if fetch fails */ }
