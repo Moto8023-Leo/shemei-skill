@@ -328,7 +328,7 @@ export const useBriefStore = create<BriefState>((set, get) => ({
         (data) => {
           if (!data || typeof data !== 'object') return;
           for (const key of ['facebook', 'instagram', 'x', 'image']) {
-            if (data[key]) partial[key] = data[key] as GeneratedContent[typeof key];
+            if (data[key]) partial[key] = { ...data[key] } as GeneratedContent[typeof key];
           }
         },
         (err) => {
