@@ -1,8 +1,8 @@
 """
 Publish Engine — unified 3-channel social media publishing.
 
-Posts to FB + IG + X simultaneously, then writes a single summary
-result back to Feishu Bitable (not per-platform).
+Posts to FB + IG + X concurrently (asyncio.gather), then writes a single
+summary result back to Feishu Bitable (not per-platform).
 
 Usage:
     python scripts/publish_engine.py                    # process all confirmed+due
@@ -103,9 +103,12 @@ async def publish_record(
                 img_abs = tmp_path
                 logger.info(f"  Image from Feishu: {os.path.getsize(tmp_path)} bytes")
 
+    # Publish to all platforms concurrently (FB, IG, X fire at the same time)
+    # Wall-clock time = slowest platform, not sum of all three
+    tasks = []
     for platform in platforms:
         platform = platform.strip().lower()
-        logger.info(f"  -> Posting to {platform.upper()}...")
+        logger.info(f"  -> Posting to {platform.upper()} (async)...")
 
         if dry_run:
             results[platform] = {"success": True, "url": f"DRY_RUN_{platform}", "error": None}
@@ -113,37 +116,46 @@ async def publish_record(
 
         # Select the right text per platform
         if platform == "x":
-            post_text = x_text if x_text else full_text[:280]
+            post_text = (x_text if x_text else full_text[:280]).strip()
+            if len(post_text) > 280:
+                logger.warning(f"  x_text is {len(post_text)} chars, hard-trimming to 280")
+                post_text = post_text[:280]
         else:
             post_text = full_text
 
-        # Retry up to 2 times for X (API rate limits / network issues)
-        max_attempts = 2 if platform == "x" else 1
-        result = {"success": False, "error": "No attempt made"}
-        for attempt in range(1, max_attempts + 1):
-            try:
-                result = await _post_single(post_text, platform, img_abs)
-                if result.get("success"):
-                    break
-                if attempt < max_attempts:
-                    logger.warning(f"  X attempt {attempt} failed, retrying in 5s...")
-                    await asyncio.sleep(5)
-            except Exception as e:
-                result = {"success": False, "error": str(e)}
-                if attempt < max_attempts:
-                    await asyncio.sleep(5)
+        async def _post_one(p=platform, t=post_text, img=img_abs):
+            """Post to one platform with retry for X."""
+            max_attempts = 2 if p == "x" else 1
+            r = {"success": False, "error": "No attempt made"}
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    r = await _post_single(t, p, img)
+                    if r.get("success"):
+                        break
+                    if attempt < max_attempts:
+                        logger.warning(f"  X attempt {attempt} failed, retrying in 5s...")
+                        await asyncio.sleep(5)
+                except Exception as e:
+                    r = {"success": False, "error": str(e)}
+                    if attempt < max_attempts:
+                        await asyncio.sleep(5)
+            return p, r
 
-        results[platform] = result
+        tasks.append(_post_one())
 
-        if result.get("success"):
-            logger.info(f"  [OK] {platform.upper()}")
+    # Run all platforms concurrently
+    gathered = await asyncio.gather(*tasks, return_exceptions=True)
+    for item in gathered:
+        if isinstance(item, Exception):
+            logger.error(f"Platform task exception: {item}")
+            continue
+        p, r = item
+        results[p] = r
+        if r.get("success"):
+            logger.info(f"  [OK] {p.upper()}")
         else:
             all_ok = False
-            logger.error(f"  [FAIL] {platform.upper()}: {result.get('error', '?')[:80]}")
-
-        # Small delay between platforms
-        if len(platforms) > 1:
-            await asyncio.sleep(2)
+            logger.error(f"  [FAIL] {p.upper()}: {r.get('error', '?')[:80]}")
 
     # Cleanup
     if tmp_dir:

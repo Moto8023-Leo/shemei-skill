@@ -19,10 +19,6 @@ export default function Topbar({ title, subtitle, online, mode }: Props) {
         <span className={`connection-state ${online ? 'online' : 'offline'}`}>
           {online ? '● 服务正常' : '● 连接中断'}
         </span>
-        <button className="header-icon" type="button" title="帮助">?</button>
-        <button className="header-icon notice" type="button" title="通知">
-          ♢<i>0</i>
-        </button>
         <button className="language-button" type="button">简体中文 ⌄</button>
         <div className="admin-mini">
           <span>管</span>

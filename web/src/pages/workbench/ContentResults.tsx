@@ -14,7 +14,6 @@ export default function ContentResults() {
   const setActiveTab = useBriefStore((s) => s.setActiveTab);
   const toggleReview = useBriefStore((s) => s.toggleReview);
   const regenerate = useBriefStore((s) => s.regenerate);
-  const publishContent = useBriefStore((s) => s.publishContent);
 
   if (!generatedData) return null;
 
@@ -110,14 +109,6 @@ export default function ContentResults() {
             onClick={toggleReview}
           >
             {reviewed ? '✓ 已标记为可审核' : '提交人工审核'}
-          </button>
-          <button
-            className="btn-primary"
-            type="button"
-            disabled={!reviewed}
-            onClick={publishContent}
-          >
-            发布到社交平台
           </button>
         </div>
       </div>

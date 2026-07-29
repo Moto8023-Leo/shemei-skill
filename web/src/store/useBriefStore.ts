@@ -7,10 +7,83 @@
 import { create } from 'zustand';
 import { api } from '../utils/api';
 import type { BriefData, ConfidenceFactors, GeneratedContent } from '../utils/api';
+
+// ── Demo mock data ──
+
+const DEMO_BRIEF: BriefData = {
+  campaignTheme: 'Summer City Commute',
+  market: { country: 'Germany', language: 'English' },
+  audience: ['Eco-conscious urban professionals', 'Students & young commuters', 'First-time e-scooter buyers'],
+  painPoints: ['Expensive gas & parking', 'Last-mile public transport gap', 'Heavy traffic during rush hours'],
+  productBenefits: ['Foldable & portable design', '36V 10.4Ah battery, 45km range', 'Affordable price at 499 EUR'],
+  messageAngle: 'Smart, green, and affordable city mobility — fold it, ride it, love it.',
+  emotionalDirection: ['Freedom', 'Joy of riding', 'Eco-pride'],
+  tone: ['Professional & friendly', 'Modern & clean'],
+  visualDirection: 'Bright urban street scenes with natural lighting, rider smiling in motion',
+  offer: { label: '🚚 Free shipping this summer', verified: true },
+  avoid: ['Racing imagery', 'Off-road extreme sports', 'Price comparison with competitors', 'Technical jargon'],
+  clarificationQuestions: [],
+  confidence: 92,
+};
+
+const DEMO_GENERATED: GeneratedContent = {
+  facebook: {
+    title: '🏙️ Your Perfect City Companion Has Arrived',
+    body: 'Meet the iENYRID M1 — the foldable electric scooter that makes every commute a joyride.\n\n✅ 350W motor, smooth acceleration\n✅ 45km range on a single charge\n✅ Foldable design — fits under your desk\n✅ Only 499 EUR\n\nRide green. Arrive fresh. Save money.\n\n👉 Tap the link in bio to learn more.',
+    footer: '#iENYRID #ElectricScooter #CityCommute #EcoFriendly #UrbanMobility #SummerRide',
+  },
+  instagram: {
+    title: 'Fold. Ride. Smile. 🛴✨',
+    body: 'Your daily commute just got an upgrade.\n\nThe iENYRID M1 combines style, sustainability, and serious savings.\n\n💨 350W whisper-quiet motor\n🔋 45km range — charge once, ride all week\n👜 Folds in seconds\n💶 Just 499 EUR\n\nWhether it\'s campus, office, or weekend exploring — the M1 gets you there with zero emissions and 100% good vibes.\n\n📸 Tag someone who needs this in their life!',
+    footer: '#iENYRID #ScooterLife #GreenCommute #UrbanExplorer #SustainableLiving #FoldAndGo',
+  },
+  x: {
+    title: 'Fold it. Ride it. Love it. 🛴',
+    body: 'iENYRID M1 is redefining urban mobility.\n\n350W motor. 45km range. Folds in seconds. 499 EUR.\n\nSummer sale: FREE SHIPPING 🚚\n\nYour commute will never be the same.\n\n#iENYRID #ElectricScooter #CityCommute',
+    footer: '',
+  },
+  image: {
+    title: 'AI Image Prompt',
+    body: 'A young professional riding an iENYRID M1 electric scooter through a sunlit European city street, foldable design visible, bright modern aesthetic, clean composition, warm natural lighting, eco-friendly urban lifestyle vibe —ar 4:5 —style raw',
+    footer: '',
+  },
+  video: {
+    title: '',
+    body: '',
+    footer: '',
+  },
+};
+
+const DEMO_CONFIDENCE: ConfidenceFactors = {
+  clarificationQuestions: { count: 0, penalty: 0 },
+  missingKeyFields: { fields: [], penalty: 0 },
+  missingLists: { fields: [], penalty: 0 },
+  market: { missing: [], penalty: 0 },
+  offerUnverified: { hasLabel: true, penalty: 0 },
+  bonuses: { avoidList: 5, audienceSegments: 3, total: 8 },
+  computedScore: 92,
+};
+
+function isDemoMode(): boolean {
+  try {
+    const bootstrap = (window as any).__BOOTSTRAP__;
+    return bootstrap?.mode === 'demo';
+  } catch { return true; }
+}
+
+async function delay(ms: number): Promise<void> {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+// Override bootstrap after it's set so isDemoMode can detect
+export function setBootstrapForDemo(data: any) {
+  (window as any).__BOOTSTRAP__ = data;
+}
 // ── Types ──
 
 export type AnalysisStatus = 'idle' | 'loading' | 'done' | 'error';
 export type GenerationStatus = 'idle' | 'loading' | 'done' | 'error';
+export type PublishStatus = 'idle' | 'loading' | 'done' | 'error';
 
 export interface StreamlinedParams {
   market: string;
@@ -49,6 +122,9 @@ export interface BriefState {
 
   // Review & publish
   reviewed: boolean;
+  publishStatus: PublishStatus;
+  publishResult: string;
+  publishedPlatforms: string[];
 
   // Error
   errorMessage: string;
@@ -97,6 +173,9 @@ const initialState = {
   activeTab: 'facebook',
   streamPhase: '',
   reviewed: false,
+  publishStatus: 'idle' as PublishStatus,
+  publishResult: '',
+  publishedPlatforms: [],
   errorMessage: '',
 };
 
@@ -125,6 +204,22 @@ export const useBriefStore = create<BriefState>((set, get) => ({
     if (!idea.trim()) return;
 
     set({ analysisStatus: 'loading', stage: 1, errorMessage: '' });
+
+    // Demo mode: return mock brief instead of failing with 405
+    if (isDemoMode()) {
+      await delay(1500);
+      set({
+        analysisStatus: 'done',
+        briefVisible: true,
+        briefData: { ...DEMO_BRIEF },
+        confidenceFactors: DEMO_CONFIDENCE,
+        briefTaskId: 'demo-brief-' + Date.now(),
+        briefApplied: false,
+        stage: 2,
+        errorMessage: '',
+      });
+      return;
+    }
 
     try {
       const result = await api.creativeBrief(idea.trim(), brandId, productId);
@@ -179,6 +274,32 @@ export const useBriefStore = create<BriefState>((set, get) => ({
   applyBrief: async () => {
     const { briefTaskId, briefData } = get();
     if (!briefTaskId) return;
+
+    // Demo mode: skip API call, directly populate generated content
+    if (isDemoMode()) {
+      const mappedParams = briefData ? briefToParams(briefData) : {};
+      set({
+        briefApplied: true,
+        errorMessage: '',
+        params: { ...get().params, ...mappedParams },
+      });
+      set({ generationStatus: 'loading', stage: 3, errorMessage: '', generatedData: null, streamPhase: 'copy' });
+      await delay(800);
+      set({ streamPhase: 'AI 正在生成社媒文案…' });
+      await delay(1200);
+      set({ streamPhase: 'AI 正在生成图片 Prompt…' });
+      await delay(800);
+      set({ streamPhase: '全部资产已生成完毕' });
+      await delay(400);
+      set({
+        generationStatus: 'done',
+        generatedData: { ...DEMO_GENERATED },
+        stage: 4,
+        errorMessage: '',
+        streamPhase: '',
+      });
+      return;
+    }
 
     try {
       await api.applyBrief(briefTaskId);
@@ -353,11 +474,24 @@ export const useBriefStore = create<BriefState>((set, get) => ({
 
   toggleReview: () => set((state) => ({ reviewed: !state.reviewed })),
 
-  resetWorkflow: () => set({ ...initialState, params: { ...initialParams } }),
+  resetWorkflow: () => set({ ...initialState, params: { ...initialParams }, publishStatus: 'idle', publishResult: '', publishedPlatforms: [] }),
 
   publishContent: async () => {
-    const { generatedData, params, briefData } = get();
-    if (!generatedData) return;
+    const { generatedData, params, briefData, publishStatus } = get();
+    if (!generatedData || publishStatus === 'loading' || publishStatus === 'done') return;
+
+    set({ publishStatus: 'loading', errorMessage: '', publishResult: '' });
+
+    // Demo mode: simulate publish
+    if (isDemoMode()) {
+      await delay(2000);
+      set({
+        publishStatus: 'done',
+        publishResult: '🎯 Demo 发布模拟成功！(FB/IG/X 三平台)\n\n实际部署后，内容将通过 Meta Graph API 和 X API 发布。',
+        publishedPlatforms: ['facebook', 'instagram', 'x'],
+      });
+      return;
+    }
 
     try {
       const fb = generatedData.facebook;
@@ -373,7 +507,6 @@ export const useBriefStore = create<BriefState>((set, get) => ({
       let imageUrl = '';
       let modelName = '';
       try {
-        // Try to get product image from backend via Feishu
         const bootstrapResp = await fetch('/api/bootstrap', { signal: AbortSignal.timeout(5000) });
         if (bootstrapResp.ok) {
           const bootstrap = await bootstrapResp.json();
@@ -398,7 +531,8 @@ export const useBriefStore = create<BriefState>((set, get) => ({
       const toneValue = Array.isArray(briefData?.tone) ? briefData.tone.join(' · ') : (params.tone || '');
       const cta = 'SHOP NOW';
 
-      await api.publishAll({
+      // Step 1: Submit async publish job (fast, returns immediately)
+      const submit = await api.publishSubmit({
         text: fbFullText,
         x_text: xData.body,
         brand: 'iENYRID',
@@ -414,9 +548,37 @@ export const useBriefStore = create<BriefState>((set, get) => ({
         tone: toneValue,
         platform: 'all',
       });
+
+      // Step 2: Poll for result (FB/IG/X now run concurrently, typically 30-60s)
+      const maxPolls = 60;  // 60 * 3s = 180s max
+      let finalResult: any = null;
+      for (let i = 0; i < maxPolls; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const statusResp = await api.publishStatus(submit.task_id);
+        if (statusResp.status === 'done' || statusResp.status === 'error') {
+          finalResult = statusResp;
+          break;
+        }
+      }
+
+      if (finalResult?.status === 'done') {
+        const platforms = finalResult.result?.platforms || {};
+        const platformNames = Object.keys(platforms).filter(k => platforms[k]?.success);
+        const failed = Object.entries(platforms).filter(([_, v]: [string, any]) => !v?.success);
+        const summary = failed.length > 0
+          ? `发布完成：${platformNames.length}/${Object.keys(platforms).length} 成功，${failed.map(([k]) => k.toUpperCase()).join('、')} 失败`
+          : '三平台发布任务已下发，查看发布记录确认结果。';
+        set({ publishStatus: 'done', publishResult: summary, publishedPlatforms: platformNames });
+      } else if (finalResult?.status === 'error') {
+        set({ publishStatus: 'error', errorMessage: `发布失败：${finalResult.result?.error || '未知错误'}` });
+      } else {
+        // Poll exhausted but server is still processing — keep showing loading, don't timeout
+        // The user can refresh the page or check publish records manually
+        set({ publishStatus: 'done', publishResult: '发布任务可能仍在进行，请查看发布记录确认。' });
+      }
     } catch (err: any) {
       const msg = err?.message || err?.detail || '未知错误';
-      set({ errorMessage: `发布失败：${msg}` });
+      set({ publishStatus: 'error', errorMessage: `发布失败：${msg}` });
     }
   },
 }));

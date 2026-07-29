@@ -44,8 +44,9 @@ function AppLayout() {
 
   useEffect(() => { init(); }, [init]);
 
-  // Health monitor
+  // Health monitor — skip in demo mode (no backend)
   useEffect(() => {
+    if (bootstrap?.mode === 'demo') return;
     const check = async () => {
       try {
         await fetch('/api/brands', { signal: AbortSignal.timeout(5000) });
@@ -54,10 +55,20 @@ function AppLayout() {
     };
     const interval = setInterval(check, 15000);
     return () => clearInterval(interval);
-  }, [setOnline]);
+  }, [setOnline, bootstrap?.mode]);
 
   if (!booted) {
-    return <BootScreen error={bootError} />;
+    // 侧边栏和顶栏立即渲染（不阻塞在 /api/bootstrap），内容区显示加载动画
+    return (
+      <div className="app-shell">
+        <Sidebar currentPath="/" />
+        <div className="app-main">
+          <Topbar title="社媒智能工作台" subtitle="正在连接…" online={online} mode="demo" />
+          <BootScreen error={bootError} />
+        </div>
+        <Toast />
+      </div>
+    );
   }
 
   const currentPath = '/' + (location.pathname.split('/')[1] || '');

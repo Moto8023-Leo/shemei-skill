@@ -34,7 +34,7 @@ async def post_to_x(text: str, image_path: Optional[str] = None) -> dict:
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False,
+            headless=True,
             args=["--disable-blink-features=AutomationControlled"],
         )
         context = await browser.new_context(

@@ -388,9 +388,12 @@ def generate_ad_content(fields: dict) -> dict:
             except Exception:
                 result[key] = val.split('"image_prompt"')[0].strip().rstrip(",").rstrip('"').rstrip("{").strip()
 
-    # Validate x_text <= 280 chars
-    if len(result["x_text"]) > 280:
-        result["x_text"] = result["x_text"][:277] + "..."
+    # Validate x_text <= 280 chars (hard trim, no mercy)
+    x_t = result.get("x_text", "")
+    if len(x_t) > 280:
+        logger.warning(f"x_text too long ({len(x_t)} chars), trimming to 280")
+        x_t = x_t[:280]
+        result["x_text"] = x_t
 
     # ---- POST-GENERATION SAFETY VALIDATION ----
     from scripts.facts import validate_content_safety, has_unsafe_range
@@ -509,10 +512,12 @@ IMPORTANT: Body target 35-55 words. x_text MUST be <= 280 characters."""
                     logger.info(f"  Review #{pass_num}: fixed {key} ({len(old_val)}->{len(new_val)} chars)")
                     content[key] = new_val
 
-        # Final safety: x_text <= 280
-        if len(content.get("x_text", "")) > 280:
-            content["x_text"] = content["x_text"][:277] + "..."
-            logger.warning(f"  Review #{pass_num}: trimmed x_text to 280 chars")
+        # Final safety: x_text <= 280 (hard trim)
+        x = content.get("x_text", "")
+        if len(x) > 280:
+            x = x[:280]
+            content["x_text"] = x
+            logger.warning(f"  Review #{pass_num}: trimmed x_text to {len(content['x_text'])} chars")
 
         # Final safety: strip any JSON from body
         for key in ("body", "x_text"):

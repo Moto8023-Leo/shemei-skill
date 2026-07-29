@@ -47,6 +47,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
@@ -543,13 +544,36 @@ async def publish_all(req: PublishRequest):
         image_path=img_path,
     )
 
-    # Writeback to Feishu schedule table — complete fields (matching content_factory)
+    # Writeback to Feishu schedule table
+    _do_feishu_writeback(req, result, img_path)
+
+    _cleanup(img_path)
+
+    response = {}
+    for platform, r in result.get("results", {}).items():
+        response[platform] = {
+            "success": r.get("success", False),
+            "url": r.get("url", ""),
+            "error": r.get("error", ""),
+        }
+    response["summary"] = summary
+    response["all_ok"] = all_ok
+    return response
+
+
+# ── In-memory task store for async publish ──
+_publish_tasks: dict[str, dict] = {}
+
+def _do_feishu_writeback(req: PublishRequest, result: dict, img_path: str) -> None:
+    """Write publish result back to Feishu schedule table."""
+    from scripts.brand_config import resolve_tables
+    from scripts.feishu_driver import FeishuDriver
+    import time as _time, json as _json
+
     summary = result.get("summary_urls", "")
     all_ok = result.get("all_ok", False)
+
     try:
-        from scripts.brand_config import resolve_tables
-        from scripts.feishu_driver import FeishuDriver
-        import time as _time, json as _json
         b_tables = resolve_tables(req.brand)
         s_table_id = b_tables.get("schedule_table_id", "")
         if s_table_id:
@@ -557,7 +581,6 @@ async def publish_all(req: PublishRequest):
             saved = driver.table_id
             driver.table_id = s_table_id
             now_ms = int(_time.time() * 1000)
-            # Generate match_code for manual web posts (MMDD-N format)
             from datetime import datetime as _dt
             match_code = req.match_code or ""
             if not match_code:
@@ -605,7 +628,6 @@ async def publish_all(req: PublishRequest):
             result["feishu_updated"] = data.get("code") == 0
             logger.info(f"Feishu writeback: {'OK' if result['feishu_updated'] else 'FAIL'} — {len(fields)} fields")
 
-            # Upload image as attachment to the new record if available
             if result["feishu_updated"] and img_path:
                 new_rid = data.get("data", {}).get("record", {}).get("record_id", "")
                 if new_rid:
@@ -620,18 +642,68 @@ async def publish_all(req: PublishRequest):
         logger.error(f"Feishu writeback error: {e}")
         result["feishu_updated"] = False
 
-    _cleanup(img_path)
 
-    response = {}
-    for platform, r in result.get("results", {}).items():
-        response[platform] = {
-            "success": r.get("success", False),
-            "url": r.get("url", ""),
-            "error": r.get("error", ""),
-        }
-    response["summary"] = summary
-    response["all_ok"] = all_ok
-    return response
+@app.post("/api/publish/submit")
+async def publish_submit(req: PublishRequest):
+    """Submit a publish job — returns immediately with a task_id.
+    The frontend polls GET /api/publish/status/{task_id} for results."""
+    import uuid as _uuid
+
+    task_id = str(_uuid.uuid4())[:8]
+    _publish_tasks[task_id] = {"status": "processing", "result": None}
+
+    async def _run():
+        try:
+            from scripts.publish_engine import publish_single_record
+            img_path = _resolve_image(req)
+
+            result = await publish_single_record(
+                record_id="web_" + str(int(__import__("time").time())),
+                full_text=req.text,
+                x_text=req.x_text or req.text[:280],
+                platforms=["fb", "ig", "x"],
+                image_path=img_path,
+            )
+
+            # Writeback to Feishu
+            _do_feishu_writeback(req, result, img_path)
+            _cleanup(img_path)
+
+            # Build response summary
+            summary = result.get("summary_urls", "")
+            platforms_result: dict[str, dict] = {}
+            for platform, r in result.get("results", {}).items():
+                platforms_result[platform] = {
+                    "success": r.get("success", False),
+                    "url": r.get("url", ""),
+                    "error": r.get("error", ""),
+                }
+
+            _publish_tasks[task_id] = {
+                "status": "done",
+                "result": {
+                    "platforms": platforms_result,
+                    "summary": summary,
+                    "all_ok": result.get("all_ok", False),
+                },
+            }
+        except Exception as e:
+            _publish_tasks[task_id] = {
+                "status": "error",
+                "result": {"error": str(e)},
+            }
+
+    asyncio.create_task(_run())
+    return {"task_id": task_id, "status": "processing"}
+
+
+@app.get("/api/publish/status/{task_id}")
+async def publish_status(task_id: str):
+    """Poll the status of a submitted publish job."""
+    task = _publish_tasks.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    return task
 
 
 # ---------------------------------------------------------------

@@ -1,34 +1,8 @@
-// RightRail — Task status + quality + checklist + publish (Creative Brief aware).
-import { useMemo, useEffect, useState } from 'react';
+// RightRail — Task status + quality + publish (Creative Brief aware).
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBriefStore } from '../../store/useBriefStore';
 import { useCalendarStore } from '../../store/useCalendarStore';
-
-import ConfidenceBreakdown from './ConfidenceBreakdown';
-
-const PLATFORM_NAMES: Record<string, string> = { facebook: 'Facebook', instagram: 'Instagram', x: 'X' };
-
-interface ReviewState {
-  global: { factsAccurate: boolean };
-  platforms: Record<string, { copyReviewed: boolean; accountVerified: boolean }>;
-}
-
-function buildInitialReview(): ReviewState {
-  const platforms: Record<string, any> = {};
-  for (const p of ['facebook', 'instagram', 'x']) {
-    platforms[p] = { copyReviewed: false, accountVerified: false };
-  }
-  return { global: { factsAccurate: false }, platforms };
-}
-
-function isReviewComplete(review: ReviewState, platforms: string[]): boolean {
-  if (!review.global.factsAccurate) return false;
-  for (const p of platforms) {
-    const pr = review.platforms[p];
-    if (!pr || !pr.copyReviewed || !pr.accountVerified) return false;
-  }
-  return true;
-}
 
 function computeDynamicQuality(briefData: any, generatedData: any, generationStatus: string) {
   if (generationStatus !== 'done' || !generatedData) {
@@ -94,7 +68,6 @@ export default function RightRail() {
         <TaskStatusCard />
         <BriefConfidenceCard />
         <ContentQualityCard />
-        <ChecklistCard />
         <CampaignCard />
       </aside>
     );
@@ -105,7 +78,6 @@ export default function RightRail() {
       <TaskStatusCard />
       <BriefConfidenceCard />
       <ContentQualityCard />
-      <ChecklistCard />
       <CampaignCard />
       <PublishCard />
     </aside>
@@ -215,44 +187,6 @@ function ContentQualityCard() {
   );
 }
 
-function ChecklistCard() {
-  const generatedData = useBriefStore((s) => s.generatedData);
-  const params = useBriefStore((s) => s.params);
-  const items = useMemo(() => {
-    const hasPromo = !!params?.offer;
-    return [
-      { text: '品牌语气与禁用词检查', status: generatedData ? ('pass' as const) : ('pending' as const) },
-      { text: '产品兼容性表述', status: 'pass' as const },
-      { text: '优惠信息与有效期', status: hasPromo ? ('pass' as const) : ('warning' as const) },
-      { text: '平台字符长度', status: generatedData ? ('pass' as const) : ('pending' as const) },
-      { text: 'CTA 与落地页一致性', status: 'pending' as const },
-    ];
-  }, [generatedData, params]);
-  const passed = items.filter(x => x.status === 'pass').length;
-  return (
-    <section className="rail-card">
-      <div className="rail-title"><div><span>✓</span>发布前检查</div><span>{passed}/{items.length}</span></div>
-      <div className="quality-items">
-        {items.map((item, i) => (
-          <div key={i}>
-            <i className={item.status === 'warning' ? 'warn' : undefined} style={item.status === 'pending' ? { background: '#d1d6df' } : undefined}>
-              {item.status === 'pass' ? '✓' : item.status === 'warning' ? '!' : ''}
-            </i>
-            <span>{item.text}</span>
-            <b>{item.status === 'pass' ? '通过' : item.status === 'warning' ? '需确认' : '待检查'}</b>
-          </div>
-        ))}
-      </div>
-      <div className="warning-box" style={{ marginTop: 11 }}>
-        <svg className="icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 4 3 20h18L12 4Z" /><path d="M12 9v5M12 17h.01" />
-        </svg>
-        优惠结束日期尚未绑定活动日历。
-      </div>
-    </section>
-  );
-}
-
 function CampaignCard() {
   const navigate = useNavigate();
   const events = useCalendarStore((s) => s.events);
@@ -275,43 +209,49 @@ function CampaignCard() {
 
 function PublishCard() {
   const generatedData = useBriefStore((s) => s.generatedData);
-  const reviewed = useBriefStore((s) => s.reviewed);
-  const platformsLower = useBriefStore((s) => s.params.platforms);
-  const platforms = useMemo(() => platformsLower.map(p => p.toLowerCase()), [platformsLower]);
+  const publishStatus = useBriefStore((s) => s.publishStatus);
+  const publishResult = useBriefStore((s) => s.publishResult);
   const publishContent = useBriefStore((s) => s.publishContent);
-  const [review, setReview] = useState<ReviewState>(buildInitialReview());
-  useEffect(() => { setReview(buildInitialReview()); }, [generatedData]);
 
+  // Hide card entirely when there's no generated data or no brief (workflow not started)
   if (!generatedData) return null;
 
-  const toggleGlobal = (key: keyof ReviewState['global']) =>
-    setReview(prev => ({ ...prev, global: { ...prev.global, [key]: !prev.global[key] } }));
-  const togglePlatform = (p: string, key: string) =>
-    setReview(prev => ({ ...prev, platforms: { ...prev.platforms, [p]: { ...prev.platforms[p], [key]: !(prev.platforms[p] as any)?.[key] } } }));
-
-  const reviewReady = isReviewComplete(review, platforms);
-  const canPublish = !!generatedData && reviewReady;
-
-  return (
-    <section className="rail-card review-card" style={{ borderLeftColor: reviewReady ? 'var(--green)' : 'var(--blue)' }}>
-      <div className="rail-title"><div><span>✓</span>发布前审核清单</div></div>
-      <div className="review-section">
-        <h5 style={{ fontSize: 10, color: '#4e5d73', margin: '0 0 5px 0', paddingBottom: 3, borderBottom: '1px solid var(--line)' }}>全局确认</h5>
-        <label className="review-item" onClick={() => toggleGlobal('factsAccurate')}><input type="checkbox" checked={review.global.factsAccurate} readOnly /><span>所有规格参数准确无误</span></label>
-      </div>
-      {platforms.map(p => (
-        <div key={p} className="review-section">
-          <h5 style={{ fontSize: 10, color: '#4e5d73', margin: '0 0 5px 0', paddingBottom: 3, borderBottom: '1px solid var(--line)' }}>{PLATFORM_NAMES[p] || p} 平台确认</h5>
-          <label className="review-item" onClick={() => togglePlatform(p, 'copyReviewed')}><input type="checkbox" checked={(review.platforms[p] as any)?.copyReviewed || false} readOnly /><span>文案已审核，符合平台风格</span></label>
-          <label className="review-item" onClick={() => togglePlatform(p, 'accountVerified')}><input type="checkbox" checked={(review.platforms[p] as any)?.accountVerified || false} readOnly /><span>发布账号已确认（{PLATFORM_NAMES[p]}）</span></label>
+  // ── Done State ──
+  if (publishStatus === 'done') {
+    return (
+      <section className="rail-card review-card done-card">
+        <div className="rail-title"><div><span className="check-icon">✓</span>已发布</div></div>
+        <p className="published-hint">{publishResult || '三平台发布任务已下发'}</p>
+        <div className="platform-tags">
+          <span className="ptag ptag-fb">FB ✓</span>
+          <span className="ptag ptag-ig">IG ✓</span>
+          <span className="ptag ptag-x">X ✓</span>
         </div>
-      ))}
-      {!reviewReady && <p className="review-hint">⚠ 请完成全部 {3 + platforms.length * 3} 项审核确认后才能发布</p>}
-      {reviewReady && <p className="review-hint ready">✅ 审核已全部完成，可以发布</p>}
-      <button className="publish-main" type="button" disabled={!canPublish} onClick={publishContent}>
-        {canPublish ? '➤ 审核通过并发布' : !generatedData ? '✧ 等待内容生成' : '✓ 完成审核清单后发布'}
-      </button>
-      <button className="sync-feishu" type="button" disabled={!generatedData}>回写飞书多维表格</button>
+        <button className="publish-main done-btn" type="button" disabled>✓ 发布完成</button>
+        <button className="sync-feishu" type="button" disabled>回写飞书多维表格</button>
+      </section>
+    );
+  }
+
+  // ── Loading State ──
+  if (publishStatus === 'loading') {
+    return (
+      <section className="rail-card review-card">
+        <div className="rail-title"><div><span className="spinner-icon">⟳</span>发布中</div></div>
+        <p className="publishing-hint">任务已下发，社媒正在发布中…</p>
+        <button className="publish-main" type="button" disabled>⟳ 发布中…</button>
+        <button className="sync-feishu" type="button" disabled>回写飞书多维表格</button>
+      </section>
+    );
+  }
+
+  // ── Idle/Ready State (default) ──
+  return (
+    <section className="rail-card review-card">
+      <div className="rail-title"><div><span>➤</span>发布</div></div>
+      <p className="ready-hint">内容已生成，点击发布到 FB + IG + X</p>
+      <button className="publish-main" type="button" onClick={publishContent}>➤ 审核通过并发布</button>
+      <button className="sync-feishu" type="button" disabled>回写飞书多维表格</button>
     </section>
   );
 }

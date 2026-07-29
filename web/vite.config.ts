@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  base: '/shemei-skill/',
   plugins: [react()],
   server: {
     host: '0.0.0.0',
@@ -11,7 +12,15 @@ export default defineConfig({
       '.ngrok-free.app',
     ],
     proxy: {
-      '/api': 'http://localhost:8000',
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/shemei-skill/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/shemei-skill/, ''),
+      },
     },
   },
 })

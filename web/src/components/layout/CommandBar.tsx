@@ -1,4 +1,5 @@
 // CommandBar — mode hint + action buttons (Creative Brief aware)
+import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { useStudioStore } from '../../store/useStudioStore';
 import { useBriefStore } from '../../store/useBriefStore';
@@ -27,14 +28,23 @@ export default function CommandBar({ mode }: Props) {
   const briefApplied = useBriefStore((s) => s.briefApplied);
   const generationLoading = useBriefStore((s) => s.generationStatus === 'loading');
   const contentReady = useBriefStore((s) => s.generationStatus === 'done');
-  const reviewed = useBriefStore((s) => s.reviewed);
   const analyzeIdea = useBriefStore((s) => s.analyzeIdea);
   const reanalyze = useBriefStore((s) => s.reanalyze);
   const applyBrief = useBriefStore((s) => s.applyBrief);
   const generateContent = useBriefStore((s) => s.generateContent);
-  const publishContent = useBriefStore((s) => s.publishContent);
 
   const isWorkbench = window.location.hash === '#/' || window.location.hash === '';
+
+  // Dropdown state
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Build visible steps based on real state (not fixed 4-step list)
   const visibleSteps: { label: string; action: () => void; disabled: boolean; variant: 'default' | 'primary' | 'success' }[] = [];
@@ -76,13 +86,7 @@ export default function CommandBar({ mode }: Props) {
   }
 
   if (contentReady) {
-    // Step 4: Publish
-    visibleSteps.push({
-      label: reviewed ? '➤ 发布' : '✓ 提交审核',
-      action: () => { publishContent(); },
-      disabled: false,
-      variant: 'success',
-    });
+    // Publish moved to RightRail PublishCard — no duplicate button here
   }
 
   return (
@@ -125,7 +129,16 @@ export default function CommandBar({ mode }: Props) {
           </>
         )}
 
-        <button type="button" aria-label="更多操作">•••</button>
+        <div className="more-menu" ref={menuRef}>
+          <button type="button" aria-label="更多操作" onClick={() => setMenuOpen(v => !v)}>•••</button>
+          {menuOpen && (
+            <div className="more-menu-dropdown">
+              <button type="button" onClick={() => { navigate('/'); setMenuOpen(false); }}>🏠 返回工作台</button>
+              <button type="button" onClick={() => { window.location.reload(); }}>🔄 刷新页面</button>
+              <button type="button" onClick={() => { window.open('http://192.168.77.99:8000/docs', '_blank'); setMenuOpen(false); }}>📖 API 文档</button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

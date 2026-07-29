@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞书多维表格实时数据</title>
+    <style>
+        body { font-family: system-ui; padding: 20px; max-width: 800px; margin: auto; }
+        .data-box { border: 1px solid #ddd; padding: 15px; margin-top: 10px; border-radius: 8px; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h2>🚀 飞书数据看板</h2>
+    <button onclick="fetchFeishuData()">🔄 刷新数据</button>
+    <div id="result" class="data-box">等待加载...</div>
+
+    <script>
+        window.onload = fetchFeishuData;
+        async function fetchFeishuData() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '正在加载，请稍候...';
+            try {
+                const response = await fetch('/api/feishu');
+                const data = await response.json();
+                if (data.success) {
+                    resultDiv.innerHTML = '<pre>' + JSON.stringify(data.records, null, 2) + '</pre>';
+                } else {
+                    resultDiv.innerHTML = '<p style="color: red;">获取失败: ' + data.error + '</p>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<p style="color: red;">网络错误: ' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>
