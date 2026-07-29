@@ -144,19 +144,41 @@ async function resolveFeishuImageUrl(feishuUrl: string): Promise<string> {
   const tokenData = await tokenResp.json() as any;
   if (tokenData.code !== 0) throw new Error(`Feishu auth failed: ${tokenData.msg}`);
 
-  // Step 2: Upload the image to FB as unpublished to get a public CDN URL
-  const uploadUrl = `${FB_GRAPH_URL}/${FB_PAGE_ID}/photos`;
-  const params = new URLSearchParams({
-    access_token: FB_ACCESS_TOKEN,
-    published: "false",
-    url: feishuUrl,
-  });
-  const uploadResp = await fetch(`${uploadUrl}?${params}`, {
-    method: "POST",
+  // Step 2: Download image bytes from Feishu (requires auth)
+  const imgResp = await fetch(feishuUrl, {
     headers: { "Authorization": `Bearer ${tokenData.tenant_access_token}` },
+  });
+  if (!imgResp.ok) throw new Error(`Feishu image download failed: ${imgResp.status}`);
+  const imageBytes = await imgResp.arrayBuffer();
+  if (imageBytes.byteLength === 0) throw new Error("Feishu image download returned empty");
+
+  // Step 3: Upload image bytes to FB as unpublished photo (multipart)
+  const boundary = "----FormBoundary" + Math.random().toString(36).slice(2);
+  const fieldName = "source";
+  const fileName = "image.png";
+
+  let body = "";
+  body += `--${boundary}\r\n`;
+  body += `Content-Disposition: form-data; name="${fieldName}"; filename="${fileName}"\r\n`;
+  body += `Content-Type: image/png\r\n\r\n`;
+  const bodyStart = new TextEncoder().encode(body);
+  const bodyEnd = new TextEncoder().encode(`\r\n--${boundary}--\r\n`);
+
+  const fullBody = new Uint8Array(bodyStart.length + imageBytes.byteLength + bodyEnd.length);
+  fullBody.set(bodyStart, 0);
+  fullBody.set(new Uint8Array(imageBytes), bodyStart.length);
+  fullBody.set(bodyEnd, bodyStart.length + imageBytes.byteLength);
+
+  const uploadUrl = `${FB_GRAPH_URL}/${FB_PAGE_ID}/photos?access_token=${encodeURIComponent(FB_ACCESS_TOKEN)}&published=false`;
+  const uploadResp = await fetch(uploadUrl, {
+    method: "POST",
+    headers: { "Content-Type": `multipart/form-data; boundary=${boundary}` },
+    body: fullBody,
   });
   const uploadData = await uploadResp.json() as any;
   if (!uploadResp.ok || !uploadData.id) {
+    throw new Error(`FB upload failed: ${uploadData?.error?.message || uploadResp.status}`);
+  }
     throw new Error(`FB upload failed: ${uploadData?.error?.message || uploadResp.status}`);
   }
 
