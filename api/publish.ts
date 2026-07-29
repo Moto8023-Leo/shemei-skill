@@ -19,6 +19,8 @@ const FB_GRAPH_URL = process.env.FB_GRAPH_URL || "https://graph.facebook.com/v22
 const FB_PAGE_ID = process.env.FB_PAGE_ID || "";
 const FB_ACCESS_TOKEN = process.env.FB_ACCESS_TOKEN || "";
 const IG_USER_ID = process.env.IG_USER_ID || "";
+const FEISHU_APP_ID = process.env.FEISHU_APP_ID || "";
+const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || "";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -64,9 +66,19 @@ async function publishToInstagram(text: string, imageUrl: string): Promise<{ suc
     return { success: false, error: "IG credentials not configured" };
   }
 
+  // Resolve Feishu URL if needed
+  let publicUrl = imageUrl;
+  if (imageUrl.includes("open.feishu.cn")) {
+    try {
+      publicUrl = await resolveFeishuImageUrl(imageUrl);
+    } catch (e: any) {
+      return { success: false, error: `Feishu image resolution failed: ${e.message}` };
+    }
+  }
+
   // Step 1: Upload to FB as unpublished → get CDN URL
   const uploadUrl = `${FB_GRAPH_URL}/${FB_PAGE_ID}/photos`;
-  const uploadParams = new URLSearchParams({ access_token: FB_ACCESS_TOKEN, published: "false", url: imageUrl });
+  const uploadParams = new URLSearchParams({ access_token: FB_ACCESS_TOKEN, published: "false", url: publicUrl });
   const uploadResp = await fetch(`${uploadUrl}?${uploadParams}`, { method: "POST" });
   const uploadData = await uploadResp.json() as any;
   if (!uploadResp.ok || !uploadData.id) {
@@ -77,12 +89,12 @@ async function publishToInstagram(text: string, imageUrl: string): Promise<{ suc
   const photoUrl = `${FB_GRAPH_URL}/${uploadData.id}?access_token=${encodeURIComponent(FB_ACCESS_TOKEN)}&fields=images`;
   const photoResp = await fetch(photoUrl);
   const photoData = await photoResp.json() as any;
-  const publicUrl = photoData?.images?.[0]?.source;
-  if (!publicUrl) return { success: false, error: "Failed to get photo CDN URL" };
+  const cdnUrl = photoData?.images?.[0]?.source;
+  if (!cdnUrl) return { success: false, error: "Failed to get photo CDN URL" };
 
   // Step 2: Create IG media container
   const containerUrl = `${FB_GRAPH_URL}/${IG_USER_ID}/media`;
-  const containerParams = new URLSearchParams({ access_token: FB_ACCESS_TOKEN, image_url: publicUrl, caption: text });
+  const containerParams = new URLSearchParams({ access_token: FB_ACCESS_TOKEN, image_url: cdnUrl, caption: text });
   const containerResp = await fetch(`${containerUrl}?${containerParams}`, { method: "POST" });
   const containerData = await containerResp.json() as any;
   if (!containerResp.ok || !containerData.id) {
@@ -115,6 +127,47 @@ async function publishToInstagram(text: string, imageUrl: string): Promise<{ suc
     return { success: true, url: `https://www.instagram.com/p/${publishData.id}/` };
   }
   return { success: false, error: `Publish: ${publishData?.error?.message || publishResp.status}` };
+}
+
+// Resolve Feishu internal image URL to a publicly accessible FB CDN URL
+async function resolveFeishuImageUrl(feishuUrl: string): Promise<string> {
+  if (!FEISHU_APP_ID || !FEISHU_APP_SECRET) {
+    throw new Error("Feishu credentials not configured for image resolution");
+  }
+
+  // Step 1: Get Feishu token
+  const tokenResp = await fetch("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    body: JSON.stringify({ app_id: FEISHU_APP_ID, app_secret: FEISHU_APP_SECRET }),
+  });
+  const tokenData = await tokenResp.json() as any;
+  if (tokenData.code !== 0) throw new Error(`Feishu auth failed: ${tokenData.msg}`);
+
+  // Step 2: Upload the image to FB as unpublished to get a public CDN URL
+  const uploadUrl = `${FB_GRAPH_URL}/${FB_PAGE_ID}/photos`;
+  const params = new URLSearchParams({
+    access_token: FB_ACCESS_TOKEN,
+    published: "false",
+    url: feishuUrl,
+  });
+  const uploadResp = await fetch(`${uploadUrl}?${params}`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${tokenData.tenant_access_token}` },
+  });
+  const uploadData = await uploadResp.json() as any;
+  if (!uploadResp.ok || !uploadData.id) {
+    throw new Error(`FB upload failed: ${uploadData?.error?.message || uploadResp.status}`);
+  }
+
+  // Step 3: Get the public URL from FB
+  const photoUrl = `${FB_GRAPH_URL}/${uploadData.id}?access_token=${encodeURIComponent(FB_ACCESS_TOKEN)}&fields=images`;
+  const photoResp = await fetch(photoUrl);
+  const photoData = await photoResp.json() as any;
+  const publicUrl = photoData?.images?.[0]?.source;
+  if (!publicUrl) throw new Error("Failed to get public CDN URL from FB");
+
+  return publicUrl;
 }
 
 // ── Handler ──
