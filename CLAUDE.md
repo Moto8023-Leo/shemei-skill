@@ -45,6 +45,17 @@ python scripts/daemon.py
 - Python: python3.exe（Windows Store）
 - Node.js: 通过 npm 管理
 - DeepSeek API + Feishu Bitable API + Facebook Graph API v22.0
+- 云端部署: Vercel Serverless（`shemei-skill.vercel.app`）
+
+## 部署模式
+
+| 模式 | 后端 | 前端 | 说明 |
+|------|------|------|------|
+| 本地开发 | Python FastAPI `:8000` | Vite dev `:5174` | 全功能，Vite 代理转发 `/api` |
+| Vercel 生产 | Serverless `api/*.ts` | 静态 `web/dist/` | 只读 API + 静态 SPA |
+| 演示模式 | 无（内嵌数据） | 静态 | `useAppStore` 提供硬编码 demo 数据 |
+
+启动流程（3 层 fallback）：先试 `/api/bootstrap`（本地/Vercel）→ 再试 `/data/bootstrap.json`（GitHub Pages 静态快照）→ 最后用内嵌 demo 数据
 
 ## 防死循环规则
 
@@ -105,13 +116,16 @@ Stage 1: 输入创意 → Stage 2: AI 分析 Brief → 确认应用 → Stage 3:
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
+| GET | `/api/health` | 健康检查（Vercel 兼容） |
 | GET | `/api/bootstrap` | 前端初始化数据（品牌、产品、国家、服务状态） |
 | GET | `/api/brands` | 品牌列表 |
 | GET | `/api/models` | 产品型号列表（从飞书读取） |
 | GET | `/api/history` | 生成历史（从 `storage/history.json`） |
 | POST | `/api/history` | 写入生成历史 |
 | GET | `/api/publish-records` | 发布记录（飞书排期表 + history 合并去重） |
-| POST | `/api/publish/all` | 统一三平台发布 + 飞书写回 |
+| POST | `/api/publish/all` | 统一三平台发布 + 飞书写回（同步，可能超时） |
+| POST | `/api/publish/submit` | 提交异步发布任务 → 返回 `task_id` |
+| GET | `/api/publish/status/{taskId}` | 轮询异步发布结果 |
 | POST | `/api/publish/fb` | 单独发布 Facebook |
 | POST | `/api/publish/ig` | 单独发布 Instagram |
 | POST | `/api/publish/x` | 单独发布 X |
@@ -119,9 +133,47 @@ Stage 1: 输入创意 → Stage 2: AI 分析 Brief → 确认应用 → Stage 3:
 | GET | `/api/events` | 营销日历活动 |
 | POST | `/api/quality/score` | 内容质量评分 |
 | POST | `/api/creative-brief` | AI 分析创意生成 Brief |
-| POST | `/api/creative-brief/apply` | 确认 Brief 并写入参数 |
-| POST | `/api/content-job` | AI 生成社媒文案 |
+| POST | `/api/creative-brief/{taskId}/apply` | 确认 Brief 并写入参数 |
+| POST | `/api/content-jobs` | AI 生成社媒文案（同步） |
+| POST | `/api/content-jobs/stream` | AI 生成社媒文案（SSE 流式） |
+| GET | `/api/content-jobs/{jobId}` | 查询生成任务结果 |
 | GET | `/api/visual/style-pool` | 视觉风格参数池 |
+| GET | `/api/product-image/{modelName}` | 产品图片查询（飞书附件链接） |
+
+## 2026-07-29 架构迁移记录
+
+### ngrok → Vercel Serverless 迁移（Phase 1）
+
+- **之前**: 本地 FastAPI → ngrok 公网隧道（不稳定，依赖本地机器）
+- **之后**: Vercel Serverless（`shemei-skill.vercel.app`），只读 API 用 TypeScript serverless 函数，发布仍走本地 Python
+- 新增 `api/` 目录：`bootstrap.ts`, `brands.ts`, `events.ts`, `health.ts`, `history.ts`, `models.ts`, `product-image/[modelName].ts`, `publish-records.ts`, `visual/style-pool.ts`, `feishu-client.ts`
+- `vercel.json`: `buildCommand` + `outputDirectory` + rewrites（`/api/(.*)` → serverless, `/(.*)` → SPA）
+- `auto-build.js`: 自动构建脚本（`cd web && npm install && npm run build`）
+- `scripts/export_static_data.py`: 导出静态快照到 `scripts/static_snapshot/`（GitHub Actions 每小时同步）
+
+### 前端韧性增强
+
+- `web/src/components/common/ErrorBoundary.tsx`: React 错误边界，捕获渲染崩溃 + 友好刷新按钮
+- `web/src/utils/api.ts`: 统一 API 客户端 — 动态 host 检测（本地 → localhost proxy，生产 → 同域）、15s 超时、最多 2 次重试、中文错误消息、SSE 流式读取 + 同步 fallback
+- `web/src/main.tsx`: App 入口包裹 ErrorBoundary
+
+### 发布流程改进
+
+- `POST /api/publish/submit` + `GET /api/publish/status/{taskId}`: 异步提交+轮询模式，避免超时
+- `publish_engine.py`: 支持 async submit/status 模式
+
+### BrandManagement 内联编辑
+
+- 品牌网站、语调 → 直接 input 编辑
+- 定位、受众、视觉 DNA → chip 内联编辑 + 添加/删除
+- 保存到 localStorage（demo 兼容），页面即时响应
+
+### 修复清单
+
+- **白屏**: `vite.config.ts` `base` 从 `/shemei-skill/` 改回 `/`
+- **VisualDNA 崩溃**: `t.map` 空值守卫
+- **CommandBar**: 非工作台页面只显示「返回工作台」按钮，工作台页面显示阶段相关按钮
+- **API host 动态检测**: 不再硬编码 `localhost:8000`
 
 ## 2026-07-25 前端优化记录
 
@@ -176,23 +228,49 @@ Stage 1: 输入创意 → Stage 2: AI 分析 Brief → 确认应用 → Stage 3:
 ```
 shemei_skill/
 ├── server.py                          # FastAPI 后端主入口
+├── auto-build.js                      # Vercel 自动构建脚本
+├── vercel.json                        # Vercel 部署配置
+├── package.json                       # Root package.json（Vercel 构建上下文）
+├── config.yaml                        # 代理、发布间隔、平台设置
+├── api/                               # Vercel Serverless 函数（TypeScript）
+│   ├── feishu-client.ts               # 共享飞书 Bitable HTTP 客户端
+│   ├── health.ts                      # GET /api/health
+│   ├── bootstrap.ts                   # GET /api/bootstrap
+│   ├── brands.ts                      # GET /api/brands
+│   ├── models.ts                      # GET /api/models
+│   ├── events.ts                      # GET /api/events
+│   ├── history.ts                     # GET /api/history
+│   ├── publish-records.ts             # GET /api/publish-records
+│   ├── visual/style-pool.ts           # GET /api/visual/style-pool
+│   └── product-image/[modelName].ts   # GET /api/product-image/:modelName
 ├── scripts/
 │   ├── brand_config.py               # 品牌→飞书表映射
 │   ├── feishu_driver.py              # 飞书 Bitable 驱动
 │   ├── studio_data.py                # 硬编码品牌/产品/国家/视觉参数
 │   ├── history_engine.py             # 生成历史 JSON 存储
-│   ├── publish_engine.py             # 三平台统一发布引擎
+│   ├── publish_engine.py             # 三平台统一发布引擎（同步+异步）
 │   ├── quality_engine.py             # 内容质量评分
 │   ├── content_factory.py            # 内容生成工厂
-│   └── daemon.py                     # 后台守护进程
+│   ├── daemon.py                     # 后台守护进程
+│   ├── product_engine.py             # 产品规格数据库
+│   ├── auto_config.py                # 飞书自动化配置读写
+│   ├── image_watcher.py              # 图片目录监控
+│   ├── utils.py                      # 共享工具
+│   ├── validate_tokens.py            # Token 校验
+│   ├── deploy_now.py                 # 手动 Vercel 部署
+│   ├── export_static_data.py         # 导出静态快照
+│   └── github_push_deploy.py         # 推送静态数据到 GitHub Pages
 ├── storage/
 │   └── history.json                  # 生成历史持久化
 ├── web/
 │   └── src/
-│       ├── App.tsx                   # 路由定义
+│       ├── App.tsx                   # 路由定义（HashRouter, 10 路由）
 │       ├── App.css                   # 全局样式（~920行）
+│       ├── main.tsx                  # 入口，ErrorBoundary 包裹
+│       ├── utils/
+│       │   └── api.ts                # 统一 API 客户端（超时/重试/SSE/动态host）
 │       ├── store/
-│       │   ├── useAppStore.ts        # 应用全局状态
+│       │   ├── useAppStore.ts        # 应用全局状态（3层boot: live→static→demo）
 │       │   ├── useBriefStore.ts      # 工作台 4 阶段状态机
 │       │   ├── useCalendarStore.ts   # 营销日历状态
 │       │   └── useStudioStore.ts     # 旧版创作台状态
@@ -203,8 +281,8 @@ shemei_skill/
 │       │   ├── Analytics.tsx         # 数据分析
 │       │   ├── Calendar.tsx          # 营销日历
 │       │   ├── Products.tsx          # 产品库
-│       │   ├── BrandManagement.tsx   # 品牌管理
-│       │   ├── VisualDNA.tsx         # 视觉风格DNA
+│       │   ├── BrandManagement.tsx   # 品牌管理（内联编辑）
+│       │   ├── VisualDNA.tsx         # 视觉风格DNA（空值安全）
 │       │   ├── Automation.tsx        # 自动化配置
 │       │   ├── Settings.tsx          # 系统设置
 │       │   └── workbench/
@@ -215,8 +293,14 @@ shemei_skill/
 │       │       ├── GenerationSkeleton.tsx
 │       │       ├── ContentResults.tsx
 │       │       └── RightRail.tsx     # 右侧栏（质量评分+审核+发布）
-│       └── components/layout/
-│           ├── Sidebar.tsx           # 侧边栏导航（SVG图标）
-│           ├── Topbar.tsx
-│           └── CommandBar.tsx
+│       └── components/
+│           ├── common/
+│           │   ├── ErrorBoundary.tsx # 错误边界 + 刷新按钮
+│           │   ├── BootScreen.tsx    # 启动加载界面
+│           │   └── Toast.tsx         # 消息提示
+│           └── layout/
+│               ├── Sidebar.tsx       # 侧边栏导航（SVG图标）
+│               ├── Topbar.tsx
+│               ├── CommandBar.tsx    # 工作流阶段按钮栏
+│               └── StatusBar.tsx
 ```

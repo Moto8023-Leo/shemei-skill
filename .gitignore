@@ -12,3 +12,6 @@ posted_log.json
 .env
 x_cookies*.json
 web/dist/
+
+.vercel
+.env*
