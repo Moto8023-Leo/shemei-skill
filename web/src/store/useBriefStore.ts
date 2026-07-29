@@ -8,73 +8,6 @@ import { create } from 'zustand';
 import { api } from '../utils/api';
 import type { BriefData, ConfidenceFactors, GeneratedContent } from '../utils/api';
 
-// ── Demo mock data ──
-
-const DEMO_BRIEF: BriefData = {
-  campaignTheme: 'Summer City Commute',
-  market: { country: 'Germany', language: 'English' },
-  audience: ['Eco-conscious urban professionals', 'Students & young commuters', 'First-time e-scooter buyers'],
-  painPoints: ['Expensive gas & parking', 'Last-mile public transport gap', 'Heavy traffic during rush hours'],
-  productBenefits: ['Foldable & portable design', '36V 10.4Ah battery, 45km range', 'Affordable price at 499 EUR'],
-  messageAngle: 'Smart, green, and affordable city mobility — fold it, ride it, love it.',
-  emotionalDirection: ['Freedom', 'Joy of riding', 'Eco-pride'],
-  tone: ['Professional & friendly', 'Modern & clean'],
-  visualDirection: 'Bright urban street scenes with natural lighting, rider smiling in motion',
-  offer: { label: '🚚 Free shipping this summer', verified: true },
-  avoid: ['Racing imagery', 'Off-road extreme sports', 'Price comparison with competitors', 'Technical jargon'],
-  clarificationQuestions: [],
-  confidence: 92,
-};
-
-const DEMO_GENERATED: GeneratedContent = {
-  facebook: {
-    title: '🏙️ Your Perfect City Companion Has Arrived',
-    body: 'Meet the iENYRID M1 — the foldable electric scooter that makes every commute a joyride.\n\n✅ 350W motor, smooth acceleration\n✅ 45km range on a single charge\n✅ Foldable design — fits under your desk\n✅ Only 499 EUR\n\nRide green. Arrive fresh. Save money.\n\n👉 Tap the link in bio to learn more.',
-    footer: '#iENYRID #ElectricScooter #CityCommute #EcoFriendly #UrbanMobility #SummerRide',
-  },
-  instagram: {
-    title: 'Fold. Ride. Smile. 🛴✨',
-    body: 'Your daily commute just got an upgrade.\n\nThe iENYRID M1 combines style, sustainability, and serious savings.\n\n💨 350W whisper-quiet motor\n🔋 45km range — charge once, ride all week\n👜 Folds in seconds\n💶 Just 499 EUR\n\nWhether it\'s campus, office, or weekend exploring — the M1 gets you there with zero emissions and 100% good vibes.\n\n📸 Tag someone who needs this in their life!',
-    footer: '#iENYRID #ScooterLife #GreenCommute #UrbanExplorer #SustainableLiving #FoldAndGo',
-  },
-  x: {
-    title: 'Fold it. Ride it. Love it. 🛴',
-    body: 'iENYRID M1 is redefining urban mobility.\n\n350W motor. 45km range. Folds in seconds. 499 EUR.\n\nSummer sale: FREE SHIPPING 🚚\n\nYour commute will never be the same.\n\n#iENYRID #ElectricScooter #CityCommute',
-    footer: '',
-  },
-  image: {
-    title: 'AI Image Prompt',
-    body: 'A young professional riding an iENYRID M1 electric scooter through a sunlit European city street, foldable design visible, bright modern aesthetic, clean composition, warm natural lighting, eco-friendly urban lifestyle vibe —ar 4:5 —style raw',
-    footer: '',
-  },
-  video: {
-    title: '',
-    body: '',
-    footer: '',
-  },
-};
-
-const DEMO_CONFIDENCE: ConfidenceFactors = {
-  clarificationQuestions: { count: 0, penalty: 0 },
-  missingKeyFields: { fields: [], penalty: 0 },
-  missingLists: { fields: [], penalty: 0 },
-  market: { missing: [], penalty: 0 },
-  offerUnverified: { hasLabel: true, penalty: 0 },
-  bonuses: { avoidList: 5, audienceSegments: 3, total: 8 },
-  computedScore: 92,
-};
-
-function isDemoMode(): boolean {
-  try {
-    const bootstrap = (window as any).__BOOTSTRAP__;
-    return bootstrap?.mode === 'demo';
-  } catch { return true; }
-}
-
-async function delay(ms: number): Promise<void> {
-  return new Promise(r => setTimeout(r, ms));
-}
-
 // ── Types ──
 
 export type AnalysisStatus = 'idle' | 'loading' | 'done' | 'error';
@@ -201,22 +134,6 @@ export const useBriefStore = create<BriefState>((set, get) => ({
 
     set({ analysisStatus: 'loading', stage: 1, errorMessage: '' });
 
-    // Demo mode: return mock brief instead of failing with 405
-    if (isDemoMode()) {
-      await delay(1500);
-      set({
-        analysisStatus: 'done',
-        briefVisible: true,
-        briefData: { ...DEMO_BRIEF },
-        confidenceFactors: DEMO_CONFIDENCE,
-        briefTaskId: 'demo-brief-' + Date.now(),
-        briefApplied: false,
-        stage: 2,
-        errorMessage: '',
-      });
-      return;
-    }
-
     try {
       const result = await api.creativeBrief(idea.trim(), brandId, productId);
       set({
@@ -230,25 +147,9 @@ export const useBriefStore = create<BriefState>((set, get) => ({
         errorMessage: '',
       });
     } catch (err: any) {
-      // Fallback: if API endpoint is missing (404/405) or server error, use demo data
-      const status = err?.status || 0;
-      if (status === 404 || status === 405 || status === 0 || status >= 500) {
-        await delay(1200);
-        set({
-          analysisStatus: 'done',
-          briefVisible: true,
-          briefData: { ...DEMO_BRIEF, campaignTheme: idea.trim().substring(0, 40) },
-          confidenceFactors: DEMO_CONFIDENCE,
-          briefTaskId: 'fallback-brief-' + Date.now(),
-          briefApplied: false,
-          stage: 2,
-          errorMessage: '',
-        });
-        return;
-      }
       set({
         analysisStatus: 'error',
-        errorMessage: `AI 分析失败：${err?.message || err?.detail || '未知错误'}`,
+        errorMessage: 'AI 分析失败：' + (err?.message || err?.detail || '未知错误'),
       });
     }
   },
