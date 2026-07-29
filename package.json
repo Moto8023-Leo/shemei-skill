@@ -1,0 +1,11 @@
+{
+  "name": "ienyrid-social-auto",
+  "private": true,
+  "version": "1.0.0",
+  "description": "iENYRID Social Auto-Poster — multi-brand social media publishing dashboard",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "cd web && npm install && npm run build",
+    "preview": "cd web && vite preview"
+  }
+}

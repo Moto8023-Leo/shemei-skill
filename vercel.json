@@ -1,22 +1,13 @@
 {
   "buildCommand": "cd web && npm install && npm run build",
   "outputDirectory": "web/dist",
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ],
-  "env": {
-    "FEISHU_APP_ID": "@feishu-app-id",
-    "FEISHU_APP_SECRET": "@feishu-app-secret",
-    "FEISHU_APP_TOKEN": "QFrowVpL3iIMAYkCE2PcaZCEnJe",
-    "DEEPSEEK_API_KEY": "@deepseek-api-key",
-    "FB_PAGE_ID": "@fb-page-id",
-    "FB_ACCESS_TOKEN": "@fb-access-token",
-    "IG_USER_ID": "@ig-user-id",
-    "X_API_KEY": "@x-api-key",
-    "X_API_SECRET": "@x-api-secret",
-    "X_ACCESS_TOKEN": "@x-access-token",
-    "X_ACCESS_SECRET": "@x-access-secret"
-  }
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "@vercel/node@5.1.14"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
