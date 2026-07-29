@@ -1,7 +1,6 @@
 // CommandBar — mode hint + action buttons (Creative Brief aware)
 import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { useStudioStore } from '../../store/useStudioStore';
 import { useBriefStore } from '../../store/useBriefStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,14 +12,6 @@ interface Props {
 export default function CommandBar({ mode }: Props) {
   const showToast = useAppStore((s) => s.showToast);
   const navigate = useNavigate();
-
-  // Old studio store (for other pages)
-  const studioContent = useStudioStore((s) => s.content);
-  const studioGenerating = useStudioStore((s) => s.generating);
-  const studioPublishing = useStudioStore((s) => s.publishing);
-  const studioSaveDraft = useStudioStore((s) => s.saveDraft);
-  const studioGenerate = useStudioStore((s) => s.generate);
-  const studioPublish = useStudioStore((s) => s.publish);
 
   // New brief store (for workbench page)
   const briefStage = useBriefStore((s) => s.stage);
@@ -114,15 +105,6 @@ export default function CommandBar({ mode }: Props) {
 
         {!isWorkbench && (
           <>
-            <button type="button" onClick={() => { studioSaveDraft(); showToast('草稿已保存', 'success'); }}>
-              ▣ 保存草稿
-            </button>
-            <button className="blue" type="button" onClick={studioGenerate} disabled={studioGenerating}>
-              {studioGenerating ? '◌ 生成中...' : '✦ 生成内容'}
-            </button>
-            <button className="green" type="button" onClick={studioPublish} disabled={!studioContent || studioPublishing}>
-              {studioPublishing ? '◌ 发布中...' : '➤ 审核通过并发布'}
-            </button>
             <button className="blue" type="button" onClick={() => navigate('/')}>
               ✦ 返回工作台
             </button>
