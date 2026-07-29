@@ -22,8 +22,7 @@ jobs:
           mkdir -p data
           for ep in health bootstrap brands "models?brand=ienyrid" "events?country=GB" "events?country=DE" "events?country=FR" "events?country=ES" "events?country=IT" "events?country=NL" "events?country=BE" "visual/style-pool?language=zh"; do
             fname=$(echo "$ep" | cut -d'?' -f1 | tr '/' '_').json
-            curl -sS --connect-timeout 30 "https://shelving-reborn-juniper.ngrok-free.dev/api/$ep" \
-              -H "ngrok-skip-browser-warning: 1" \
+            curl -sS --connect-timeout 30 "https://shemei-skill.vercel.app/api/$ep" \
               -o "data/$fname" && echo "OK $fname" || echo "FAIL $ep"
           done
 

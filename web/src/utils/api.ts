@@ -171,50 +171,22 @@ export interface BootstrapResponse {
 }
 
 // ------------------------------------------------------------------
-// API base URL — auto-detect environment with ngrok liveness probe
+// API base URL — auto-detect environment
 // ------------------------------------------------------------------
 
-const NGROK_BASE = 'https://shelving-reborn-juniper.ngrok-free.dev';
-
-let _ngrokAvailable: boolean | null = null; // null = unchecked
-let _ngrokChecking: Promise<boolean> | null = null;
-
-async function probeNgrok(): Promise<boolean> {
-  if (_ngrokAvailable !== null) return _ngrokAvailable;
-  if (_ngrokChecking) return _ngrokChecking;
-
-  _ngrokChecking = (async () => {
-    try {
-      const resp = await fetch(`${NGROK_BASE}/api/health`, {
-        headers: { 'ngrok-skip-browser-warning': '1' },
-        signal: AbortSignal.timeout(5000),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        _ngrokAvailable = data?.ok === true;
-      } else {
-        _ngrokAvailable = false;
-      }
-    } catch {
-      _ngrokAvailable = false;
-    }
-    return _ngrokAvailable;
-  })();
-
-  return _ngrokChecking;
-}
+const VERCEL_BASE = 'https://shemei-skill.vercel.app';
 
 function getBaseUrl(): string {
   // In development (localhost) use relative paths → Vite proxy handles it
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     return '';
   }
-  // In production (GitHub Pages) → point to ngrok backend if available
-  return NGROK_BASE;
+  // In production → point to Vercel backend
+  return VERCEL_BASE;
 }
 
-/** Whether we're on GitHub Pages (production deployment). */
-function isGitHubPages(): boolean {
+/** Whether we're on a production deployment (not local dev). */
+function isProductionHost(): boolean {
   return window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
 }
 
@@ -237,22 +209,10 @@ async function _fetch<T>(
 ): Promise<T> {
   let lastError: ApiError | null = null;
 
-  // Smart routing for API calls on GitHub Pages
+  // Smart routing for API calls on production
   const base = getBaseUrl();
   if (base && url.startsWith('/api/')) {
-    // If ngrok is known unavailable, route to static fallback path
-    const live = _ngrokAvailable !== false; // null (unchecked) => try first
-    if (live) {
-      url = base + url;
-      if (!options.headers) {
-        options.headers = { 'ngrok-skip-browser-warning': '1' };
-      } else if (!(options.headers as Record<string, string>)['ngrok-skip-browser-warning']) {
-        (options.headers as Record<string, string>)['ngrok-skip-browser-warning'] = '1';
-      }
-    } else {
-      // Route to static data fallback
-      url = url.replace('/api/', '/data/') + '.json';
-    }
+    url = base + url;
   }
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -312,18 +272,7 @@ async function _fetch<T>(
         throw timeoutErr;
       }
 
-      // Network error — maybe ngrok is down, mark it unavailable and retry with fallback
-      if (isGitHubPages() && base && url.startsWith(base) && _ngrokAvailable !== false) {
-        _ngrokAvailable = false;
-        // Retry this call immediately with static fallback
-        const fallbackUrl = url.replace(base, '').replace('/api/', '/data/') + '.json';
-        if (attempt < MAX_RETRIES) {
-          url = fallbackUrl;
-          await sleep(500);
-          continue;
-        }
-      }
-
+      // Network error — report it
       const netErr: ApiError = {
         status: 0,
         message: '网络连接失败，请检查服务是否启动',
@@ -708,8 +657,3 @@ export interface ContentJobResponse {
 }
 
 export default api;
-
-// ------------------------------------------------------------------
-// Smart ngrok probe — expose to app for status display
-// ------------------------------------------------------------------
-export { probeNgrok, _ngrokAvailable as ngrokAvailable, isGitHubPages };
