@@ -17,7 +17,7 @@ import PublishRecords from './pages/PublishRecords';
 import Analytics from './pages/Analytics';
 import Automation from './pages/Automation';
 import Settings from './pages/Settings';
-import 'tdesign-react/esm/style/index.js';
+import 'tdesign-react/es/style/index.css';
 import './App.css';
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
@@ -44,9 +44,9 @@ function AppLayout() {
 
   useEffect(() => { init(); }, [init]);
 
-  // Health monitor — skip in demo mode (no backend)
+  // Health monitor — skip in demo mode or before boot completes
   useEffect(() => {
-    if (bootstrap?.mode === 'demo') return;
+    if (!booted || bootstrap?.mode === 'demo') return;
     const check = async () => {
       try {
         await fetch('/api/brands', { signal: AbortSignal.timeout(5000) });
@@ -55,7 +55,7 @@ function AppLayout() {
     };
     const interval = setInterval(check, 15000);
     return () => clearInterval(interval);
-  }, [setOnline, bootstrap?.mode]);
+  }, [setOnline, booted, bootstrap?.mode]);
 
   if (!booted) {
     // 侧边栏和顶栏立即渲染（不阻塞在 /api/bootstrap），内容区显示加载动画
