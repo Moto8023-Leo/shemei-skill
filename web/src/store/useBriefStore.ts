@@ -489,7 +489,7 @@ export const useBriefStore = create<BriefState>((set, get) => ({
       const fbFullText = `${fb.title}\n\n${fb.body}\n\n${fb.footer}`;
       const igFullText = `${ig.title}\n\n${ig.body}\n\n${ig.footer}`;
 
-      // Get product image URL from bootstrap (first product with image)
+      // Get product image URL from bootstrap — match the product in briefData
       let imageUrl = '';
       let modelName = '';
       try {
@@ -497,11 +497,23 @@ export const useBriefStore = create<BriefState>((set, get) => ({
         if (bootstrapResp.ok) {
           const bootstrap = await bootstrapResp.json();
           const products = bootstrap?.products || [];
-          const firstProduct = products[0];
-          if (firstProduct) {
-            modelName = modelName || firstProduct.model || firstProduct.name || '';
-            // Use imageUrl from bootstrap directly (fetched from Feishu product table)
-            imageUrl = firstProduct.imageUrl || '';
+          // Try to match the product mentioned in the brief (campaignTheme usually contains model name)
+          const briefTheme = (briefData?.campaignTheme || '').toLowerCase();
+          let matchedProduct = products.find((p: any) => {
+            const model = (p.model || '').toLowerCase();
+            return model && briefTheme.includes(model);
+          });
+          // Fallback: first product with an image
+          if (!matchedProduct) {
+            matchedProduct = products.find((p: any) => p.imageUrl);
+          }
+          // Last fallback: first product
+          if (!matchedProduct) {
+            matchedProduct = products[0];
+          }
+          if (matchedProduct) {
+            modelName = matchedProduct.model || matchedProduct.name || '';
+            imageUrl = matchedProduct.imageUrl || '';
           }
         }
       } catch { /* use empty imageUrl if fetch fails */ }
