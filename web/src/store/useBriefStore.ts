@@ -476,8 +476,14 @@ export const useBriefStore = create<BriefState>((set, get) => ({
     try {
       const fb = generatedData.facebook;
       const ig = generatedData.instagram;
-      const xData = generatedData.x;
-      const imageAsset = generatedData.image;
+      const xData = generatedData.x || { title: '', body: '', footer: '' };
+      const imageAsset = generatedData.image || { title: '', body: '', footer: '' };
+
+      // Guard: ensure required fields exist
+      if (!fb?.title || !fb?.body) {
+        set({ publishStatus: 'error', errorMessage: '发布失败：生成内容不完整，请重新生成。' });
+        return;
+      }
 
       // Build full text with hashtags embedded
       const fbFullText = `${fb.title}\n\n${fb.body}\n\n${fb.footer}`;
