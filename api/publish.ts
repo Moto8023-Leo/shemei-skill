@@ -199,6 +199,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const action = (req.query.action as string) || "submit";
+
+  // Validate action — prevent fall-through of unknown actions into default submit
+  if (!["submit", "fb", "ig"].includes(action)) {
+    return res.status(400).json({ error: `Unknown action: ${action}. Valid actions: submit, fb, ig` });
+  }
   const { text, x_text, image_url } = req.body || {};
 
   if (!text?.trim()) {

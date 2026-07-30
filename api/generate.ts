@@ -238,12 +238,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         "X-Accel-Buffering": "no",
       });
       res.write(sse({ type: "status", key: "copy", status: "running" }));
-      res.write(sse({
-        facebook: { title: "Your City, Your Freedom. Ride iENYRID.", body: "Discover the joy of zipping through city streets with iENYRID electric scooters.", footer: "#iENYRID #ElectricScooter #CityCommute #RideFree" },
-      }));
       setTimeout(() => {
         res.write(sse({ type: "status", key: "image", status: "running" }));
         res.write(sse({
+          facebook: { title: "Your City, Your Freedom. Ride iENYRID.", body: "Discover the joy of zipping through city streets with iENYRID electric scooters.", footer: "#iENYRID #ElectricScooter #CityCommute #RideFree" },
           instagram: { title: "Freedom on two wheels.", body: "From last-mile commutes to weekend explorations.", footer: "#iENYRID #ScooterLife #UrbanMobility #RideElectric" },
           x: { title: "", body: "Zip through the city with iENYRID. Long range, foldable.", footer: "#iENYRID #EScooter" },
           image: { title: "Image Prompt", body: brief.visualDirection || "Urban environment, golden hour light.", footer: "Avoid: incorrect proportions." },
@@ -301,7 +299,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       res.write(sse({ type: "status", key: "image", status: "running" }));
-      res.write(sse({ instagram: generated.instagram, x: generated.x, image: generated.image }));
+      res.write(sse({ facebook: generated.facebook, instagram: generated.instagram, x: generated.x, image: generated.image }));
       res.write(sse({ type: "status", key: "done", status: "done" }));
       res.end();
     } catch (e: any) {
