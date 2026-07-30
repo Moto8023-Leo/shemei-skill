@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd web && npm install && npm run build && cp dist/index.html ../index.html",
+  "buildCommand": "cd web && npm install && npm run build",
   "outputDirectory": "web/dist",
   "functions": {
     "api/generate.ts": { "maxDuration": 55 },
