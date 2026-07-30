@@ -103,7 +103,20 @@
       "ctaFingerprint": "explore grab",
       "sceneFingerprint": "city street office golden morning",
       "compositionFingerprint": "clean angle wide clean"
+    },
+    {
+      "taskId": "TASK-20260730-719662",
+      "title": "Summer’s Calling – Up to 60km of Freedom Awaits. 🛴☀️",
+      "body": "Stuck in traffic this summer? Break free with the iENYRID ES1. Its 2400W motor climbs any hill, and the dual disc brakes keep you safe. With up to 60km range, you can explore the city all weekend. Snag yours now for €669 – Summer Sale ends August 31st! 👉 https://www.ienyrid-eu.com/products/ienyrid-es1-electric-scooter",
+      "tags": "#iENYRIDES1 #ElectricScooter #SummerAdventure #CityCommute",
+      "imagePrompt": "A modern city street at golden hour, with a young professional in summer attire riding an iENYRID ES1 electric scooter. The scooter is sleek black, folded easily at a crosswalk. Clean asphalt, glass office buildings in the background, warm morning light casting long shadows. The scooter’s LED headlight is off, but visible. Composition: low angle, motion blur suggesting speed, crisp focus on the scooter. Mood: energetic, free, urban. Highlight key features: 2400W motor, dual disc brakes, 60km range, foldable design.",
+      "createdAt": "2026-07-30T17:07:40.889352",
+      "hookFingerprint": "summer calling 60km freedom awaits stuck traffic",
+      "sellingPointFingerprint": "2400w motor 60km range 669 summer citycommute electricscooter ienyrides1 summeradventure",
+      "ctaFingerprint": "explore",
+      "sceneFingerprint": "city street golden summer office",
+      "compositionFingerprint": "clean angle blur focus"
     }
   ],
-  "updatedAt": "2026-07-30T15:55:55.062223"
+  "updatedAt": "2026-07-30T17:07:40.889552"
 }

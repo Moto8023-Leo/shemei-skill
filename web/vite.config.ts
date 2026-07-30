@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
-    port: 5175,
+    port: 5174,
     allowedHosts: [
       'shemei-skill-git-main-moto8023.vercel.app',
     ],
