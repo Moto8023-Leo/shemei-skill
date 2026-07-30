@@ -4,8 +4,38 @@
   "version": "1.0.0",
   "description": "iENYRID Social Auto-Poster — multi-brand social media publishing dashboard",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "cd web && npm install && npm run build",
-    "preview": "cd web && vite preview"
+    "server": "nodemon --exec tsx server.js",
+    "dev:server": "nodemon --exec tsx server.js",
+    "dev": "cd web && npm run dev",
+    "build": "cd web && npm install && npm run build"
+  },
+  "main": "auto-build.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Moto8023-Leo/shemei-skill.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Moto8023-Leo/shemei-skill/issues"
+  },
+  "homepage": "https://github.com/Moto8023-Leo/shemei-skill#readme",
+  "dependencies": {
+    "axios": "^1.19.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "openai": "^7.1.0",
+    "playwright": "^1.62.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "tsx": "^4.23.1"
   }
 }

@@ -64,7 +64,33 @@
       "ctaFingerprint": "grab",
       "sceneFingerprint": "city street golden office urban",
       "compositionFingerprint": "clean focus angle blur"
+    },
+    {
+      "taskId": "TASK-20260730-F2A4A9",
+      "title": "60km range, zero charging anxiety — your summer escape starts now.",
+      "body": "Summer's calling. Answer with the iENYRID ES1. 🛴 Up to 60km range, 2400W motor, and dual disc brakes — conquer city streets and weekend trails without the stress. Lightweight, foldable, and ready to roll. Grab yours: https://www.ienyrid-eu.com/products/ienyrid-es1-electric-scooter #SummerSale2026",
+      "tags": "#iENYRIDES1 #ElectricScooter #LongRange #SummerAdventures",
+      "imagePrompt": "A sleek iENYRID ES1 electric scooter parked on a sunlit city street with a summer vibe — blue sky, trees, and a rider smiling in the background. The scooter is folded next to a backpack, emphasizing portability and adventure.",
+      "createdAt": "2026-07-30T10:44:05.766492",
+      "hookFingerprint": "60km range zero charging anxiety summer escape starts calling",
+      "sellingPointFingerprint": "2400w motor 60km range electricscooter ienyrides1 longrange summeradventures",
+      "ctaFingerprint": "grab",
+      "sceneFingerprint": "city street summer",
+      "compositionFingerprint": ""
+    },
+    {
+      "taskId": "TASK-20260730-0D98E4",
+      "title": "60km of Summer Freedom – No Charging, Just Riding",
+      "body": "Summer's here, and your weekend just got a serious upgrade. 🛴 The iENYRID ES1 gives you up to 60km of range—enough to explore the city, hit the coast, or cruise to brunch without hunting for a plug. Its 2400W motor tackles 30° hills like they're flat. Lightweight, foldable, and with dual disc brakes for peace of mind. Grab yours now at iENYRID!",
+      "tags": "#iENYRIDES1 #ElectricScooter #SummerVibes #CityExplorer",
+      "imagePrompt": "A modern city street bathed in warm golden morning light, clean asphalt reflecting the soft glow. In the foreground, a sleek iENYRID ES1 electric scooter in cool black, parked next to a glass office building. A professional commuter in casual summer attire is about to mount it, holding a coffee cup. The background shows other scooters and cyclists, giving a vibrant urban vibe. Highlight the scooter's folding mechanism, dual disc brakes, and 10-inch tires. The lighting is bright and inviting, with slight lens flare. Composition: low angle emphasizing the scooter's power and sleek design. Mood: energetic, optimistic, perfect for summer commutes.",
+      "createdAt": "2026-07-30T13:13:38.380928",
+      "hookFingerprint": "60km summer freedom charging riding here weekend serious upgrade",
+      "sellingPointFingerprint": "2400w motor 60km range cityexplorer electricscooter ienyrides1 summervibes",
+      "ctaFingerprint": "explore grab",
+      "sceneFingerprint": "city street golden morning office",
+      "compositionFingerprint": "clean lighting angle"
     }
   ],
-  "updatedAt": "2026-07-29T21:30:16.304891"
+  "updatedAt": "2026-07-30T13:13:38.381224"
 }
