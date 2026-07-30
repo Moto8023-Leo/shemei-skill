@@ -249,6 +249,19 @@ function PublishCard() {
     );
   }
 
+  // ── Error State ──
+  const publishError = useBriefStore((s) => s.errorMessage);
+  if (publishStatus === 'error' || publishError) {
+    return (
+      <section className="rail-card review-card error-card">
+        <div className="rail-title"><div><span>✕</span>发布失败</div></div>
+        <p className="error-hint" style={{ color: 'var(--color-error, #e53e3e)', fontSize: 13 }}>{publishError || '发布请求失败，请稍后重试。'}</p>
+        <button className="publish-main" type="button" onClick={publishContent}>↻ 重试发布</button>
+        <button className="sync-feishu" type="button" disabled>回写飞书多维表格</button>
+      </section>
+    );
+  }
+
   // ── Idle/Ready State (default) ──
   return (
     <section className="rail-card review-card">

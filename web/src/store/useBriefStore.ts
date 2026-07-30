@@ -255,6 +255,13 @@ export const useBriefStore = create<BriefState>((set, get) => ({
         errorMessage: '生成未返回有效内容，请重试。',
         stage: 3,
       });
+    } else {
+      // SSE stream explicitly failed — surface the error
+      set({
+        generationStatus: 'error',
+        errorMessage: 'AI 生成失败：流式请求中断或后端超时，请重试。',
+        stage: 3,
+      });
     }
   },
 
@@ -280,11 +287,15 @@ export const useBriefStore = create<BriefState>((set, get) => ({
 
   generateContent: async () => {
     const { briefData } = get();
-    if (!briefData) return;
+    if (!briefData) {
+      set({ errorMessage: '请先完成 AI 创意分析，生成 Brief 后再试。' });
+      return;
+    }
 
     set({ generationStatus: 'loading', stage: 3, errorMessage: '', generatedData: null, streamPhase: 'copy' });
 
     let partial: Partial<GeneratedContent> = {};
+    let streamError = '';
 
     try {
       await api.createContentJobStream(
@@ -303,12 +314,12 @@ export const useBriefStore = create<BriefState>((set, get) => ({
             if (data[key]) partial[key] = data[key] as GeneratedContent[typeof key];
           }
         },
-        (_err) => {
-          // ignore — fallback to demo below
+        (err) => {
+          streamError = err;
         },
       );
-    } catch {
-      // API unavailable — fallback to demo below
+    } catch (e: any) {
+      streamError = e?.message || '网络连接失败';
     }
 
     if (Object.keys(partial).length > 0) {
@@ -317,6 +328,13 @@ export const useBriefStore = create<BriefState>((set, get) => ({
         generatedData: partial as GeneratedContent,
         stage: 4,
         errorMessage: '',
+        streamPhase: '',
+      });
+    } else {
+      set({
+        generationStatus: 'error',
+        errorMessage: streamError || 'AI 生成失败，未返回有效内容，请重试。',
+        stage: 3,
         streamPhase: '',
       });
     }
@@ -456,13 +474,11 @@ export const useBriefStore = create<BriefState>((set, get) => ({
       } else {
         set({ publishStatus: 'done', publishResult: '发布任务已提交，请查看发布记录确认结果。' });
       }
-    } catch {
-      // Publish API unavailable — graceful fallback
-      await new Promise(r => setTimeout(r, 2000));
+    } catch (e: any) {
       set({
-        publishStatus: 'done',
-        publishResult: '🎯 发布模拟成功 (FB/IG/X)',
-        publishedPlatforms: ['facebook', 'instagram', 'x'],
+        publishStatus: 'error',
+        errorMessage: `发布失败：${e?.message || e?.detail || '网络异常，请稍后重试'}`,
+        publishResult: '',
       });
     }
   },
