@@ -83,8 +83,7 @@ export default function CommandBar({ mode }: Props) {
   return (
     <div className="commandbar">
       <div className="commandbar-context">
-        <span>☁</span>
-        <span>{mode === 'live' ? 'Claude / GPT Image 服务已连接' : '演示模式：未配置密钥也可完整体验'}</span>
+        <span>{mode !== 'live' ? '演示模式：未配置密钥也可完整体验' : ''}</span>
       </div>
       <div className="commandbar-actions">
         {isWorkbench && visibleSteps.length > 0 && (
