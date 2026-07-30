@@ -1,41 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>飞书云端看板 (Vercel 版)</title>
-    <style>
-        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
-        .data-box { border: 1px solid #e0e0e0; padding: 15px; margin-top: 15px; border-radius: 8px; background: #fdfdfd; }
-        .btn { padding: 8px 16px; background-color: #0052d9; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .btn:hover { background-color: #003eb3; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iENYRID Social Auto-Poster</title>
+  <script type="module" crossorigin src="/assets/index-BxRH0F-G.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C6XEpvAo.css">
 </head>
 <body>
-    <h2>☁️ 飞书多维表格 - 实时数据</h2>
-    <p>此页面已脱离本地，完全运行在 Vercel 云端服务器。</p>
-    <button class="btn" onclick="fetchFeishuData()">🔄 获取最新数据</button>
-    <div id="result" class="data-box">等待请求...</div>
-
-    <script>
-        window.onload = fetchFeishuData;
-        async function fetchFeishuData() {
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = '正在通过 Vercel 云函数向飞书请求数据...';
-            try {
-                // 这里的 /api/feishu 会自动被 Vercel 识别为无服务器函数
-                const response = await fetch('/api/feishu');
-                const data = await response.json();
-                
-                if (data.success) {
-                    resultDiv.innerHTML = `<pre style="white-space: pre-wrap; word-wrap: break-word;">${JSON.stringify(data.records, null, 2)}</pre>`;
-                } else {
-                    resultDiv.innerHTML = `<p style="color: #d32f2f;">❌ 请求失败: ${data.error}</p>`;
-                }
-            } catch (error) {
-                resultDiv.innerHTML = `<p style="color: #d32f2f;">❌ 网络异常: ${error.message}</p>`;
-            }
-        }
-    </script>
+  <div id="root"></div>
 </body>
 </html>
