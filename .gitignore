@@ -15,3 +15,23 @@ web/dist/
 
 .vercel
 .env*
+# Diagnostic scripts
+auto-fix.js
+doctor.js
+diagnose-api.mjs
+test-post-api.mjs
+vercel-redeploy.mjs
+vercel-page.png
+vercel-deployments.png
+
+# Operation manual
+OPERATION_MANUAL.md
+
+# Stale Next.js scaffolding (must not re-enter repo)
+app/
+lib/deepseek.ts
+lib/feishu.ts
+lib/meta-api.ts
+lib/playwright-x.ts
+server.js
+package-lock.json
