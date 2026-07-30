@@ -11,6 +11,7 @@ content_queue.json
 posted_log.json
 .env
 x_cookies*.json
+web/dist/
 
 .vercel
 .env*
